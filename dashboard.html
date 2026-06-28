@@ -259,10 +259,18 @@ let chartInstances = {};
 
 async function api(data) {
   const res = await fetch(API_URL, {
-    method: 'POST', headers: {'Content-Type': 'text/plain'},
-    body: JSON.stringify({...data, token: session.token})
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({...data, token: session.token}),
+    redirect: 'follow'
   });
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch(e) {
+    console.error('Response was not JSON:', text.substring(0, 200));
+    return { success: false, message: 'Server response error. Please try again.' };
+  }
 }
 
 // INIT
@@ -400,6 +408,93 @@ function buildEntryTable(fy) {
   </tr></tfoot></table>`;
 
   document.getElementById('entry-table-wrap').innerHTML = html;
+}
+
+// BUILD ALL FY TABLE
+function buildAllFYTable() {
+  document.getElementById('entry-fy-title').textContent = 'All Financial Years — Enter Allocation & Expenditure';
+
+  const allEC = [...allCodes.map(c => ({code: c.code, description: c.description, is2pct: false})),
+    {code: '2PCT', description: '2% Cost (Contingency / Miscellaneous)', is2pct: true}];
+
+  const dis = isSubmitted ? 'disabled' : '';
+
+  let html = `<table><thead>
+    <tr>
+      <th class="left" rowspan="2" style="min-width:200px;">Economic Code & Description</th>
+      ${FY_LIST.map(fy => `<th colspan="3" style="background:#2471a3;text-align:center;">FY ${fy}</th>`).join('')}
+    </tr>
+    <tr>
+      ${FY_LIST.map(() => `
+        <th class="alloc-hdr" style="font-size:11px;">Alloc (Tk)</th>
+        <th class="exp-hdr" style="font-size:11px;">Exp (Tk)</th>
+        <th class="bal-hdr" style="font-size:11px;">Bal (Tk)</th>
+      `).join('')}
+    </tr>
+  </thead><tbody>`;
+
+  allEC.forEach(c => {
+    const rowCls = c.is2pct ? 'style="background:#fef9e7;"' : '';
+    const codeLabel = c.is2pct
+      ? '<span style="color:#7d6608;font-weight:700;">2% Cost</span>'
+      : '<span style="color:#1a5276;">' + c.code + '</span>';
+
+    html += `<tr ${rowCls}>
+      <td class="ec-name">${codeLabel}<br>
+        <span style="font-weight:400;font-size:11px;color:#777;">${c.description}</span></td>`;
+
+    FY_LIST.forEach(fy => {
+      const d = savedData[c.code]?.[fy] || {alloc:0, exp:0};
+      const alloc = parseFloat(d.alloc || 0);
+      const exp   = parseFloat(d.exp   || 0);
+      const bal   = alloc - exp;
+      const over  = alloc > 0 && exp > alloc;
+
+      html += `
+        <td><input class="num-input" type="text" inputmode="decimal"
+          style="width:100px;"
+          data-ec="${c.code}" data-fy="${fy}" data-type="alloc"
+          value="${alloc > 0 ? alloc : ''}" placeholder="0.00" ${dis}
+          oninput="validateNum(this);recalcAll('${c.code}','${fy}')"></td>
+        <td><input class="num-input ${over ? 'over-alloc' : ''}" type="text" inputmode="decimal"
+          style="width:100px;"
+          data-ec="${c.code}" data-fy="${fy}" data-type="exp"
+          value="${exp > 0 ? exp : ''}" placeholder="0.00" ${dis}
+          oninput="validateNum(this);recalcAll('${c.code}','${fy}')"></td>
+        <td class="${alloc > 0 ? (bal < 0 ? 'bal-negative' : 'bal-positive') : ''}"
+          id="abal-${c.code}-${fy}" style="font-size:12px;min-width:80px;">
+          ${alloc > 0 ? fmt(bal) : ''}
+        </td>`;
+    });
+
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('entry-table-wrap').innerHTML = html;
+}
+
+// RECALC FOR ALL FY TABLE
+function recalcAll(ec, fy) {
+  const get = type => parseFloat(document.querySelector(
+    `input[data-ec="${ec}"][data-fy="${fy}"][data-type="${type}"]`)?.value || 0);
+  const alloc = get('alloc');
+  const exp   = get('exp');
+  const bal   = alloc - exp;
+  const over  = alloc > 0 && exp > alloc;
+
+  const balEl = document.getElementById('abal-' + ec + '-' + fy);
+  if (balEl) {
+    balEl.textContent = alloc > 0 ? fmt(bal) : '';
+    balEl.className = alloc > 0 ? (bal < 0 ? 'bal-negative' : 'bal-positive') : '';
+  }
+
+  const expEl = document.querySelector(`input[data-ec="${ec}"][data-fy="${fy}"][data-type="exp"]`);
+  if (expEl) expEl.classList.toggle('over-alloc', over);
+
+  // Update memory
+  if (!savedData[ec]) savedData[ec] = {};
+  savedData[ec][fy] = {alloc, exp};
 }
 
 // VALIDATE INPUT — numbers and decimal only

@@ -194,6 +194,64 @@
   </div>
 </div>
 
+<div style="max-width:860px;margin:20px auto;padding:0 16px;">
+  <div style="background:white;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.08);overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1a5276,#2980b9);color:white;padding:16px 24px;">
+      <h2 style="font-size:16px;font-weight:700;">📖 How to Use This System</h2>
+      <p style="font-size:12px;opacity:0.85;margin-top:4px;">PEDP4-DPHE Allocation-Expenditure Data Collection | For District DPHE Offices</p>
+    </div>
+    <div style="padding:20px 24px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:20px;">
+
+        <div style="text-align:center;padding:16px;background:#f0f7ff;border-radius:8px;border-top:3px solid #2980b9;">
+          <div style="font-size:32px;margin-bottom:8px;">1️⃣</div>
+          <div style="font-weight:700;color:#1a5276;font-size:14px;margin-bottom:6px;">Register</div>
+          <div style="font-size:12px;color:#555;line-height:1.5;">Click the <strong>Register</strong> tab. Select your office name from the dropdown, enter your official email address and create a password. Each office registers only once.</div>
+        </div>
+
+        <div style="text-align:center;padding:16px;background:#f0fff4;border-radius:8px;border-top:3px solid #27ae60;">
+          <div style="font-size:32px;margin-bottom:8px;">2️⃣</div>
+          <div style="font-weight:700;color:#1a5276;font-size:14px;margin-bottom:6px;">Login</div>
+          <div style="font-size:12px;color:#555;line-height:1.5;">Use your registered email and password to login. If you forget your password, use the <strong>Forgot Password</strong> tab to reset it via email.</div>
+        </div>
+
+        <div style="text-align:center;padding:16px;background:#fef9e7;border-radius:8px;border-top:3px solid #e67e22;">
+          <div style="font-size:32px;margin-bottom:8px;">3️⃣</div>
+          <div style="font-weight:700;color:#1a5276;font-size:14px;margin-bottom:6px;">Enter Data</div>
+          <div style="font-size:12px;color:#555;line-height:1.5;">Select a Financial Year or choose <strong>All FY</strong> to see all years at once. Enter Allocation and Expenditure for each relevant economic code. Leave irrelevant codes blank.</div>
+        </div>
+
+        <div style="text-align:center;padding:16px;background:#fdf0f7;border-radius:8px;border-top:3px solid #8e44ad;">
+          <div style="font-size:32px;margin-bottom:8px;">4️⃣</div>
+          <div style="font-weight:700;color:#1a5276;font-size:14px;margin-bottom:6px;">Save & Submit</div>
+          <div style="font-size:12px;color:#555;line-height:1.5;">Click <strong>Save Draft</strong> at any time to save your progress. When all data is complete, click <strong>Submit Final</strong>. HQ will be notified automatically.</div>
+        </div>
+
+      </div>
+
+      <div style="background:#f8f9fa;border-radius:8px;padding:14px 16px;border-left:4px solid #2980b9;">
+        <p style="font-size:13px;font-weight:700;color:#1a5276;margin-bottom:8px;">⚠️ Important Notes:</p>
+        <ul style="font-size:12px;color:#555;line-height:1.8;padding-left:18px;">
+          <li>Each district office registers <strong>only once</strong> using their official email</li>
+          <li>Enter figures in <strong>actual Taka</strong> including decimals (e.g. 1500000.50)</li>
+          <li>Data covers <strong>FY 2018-19 to FY 2025-26</strong> (8 financial years)</li>
+          <li>You can save as draft and return later — your data is never lost</li>
+          <li>Once submitted, contact HQ to unlock for any corrections</li>
+          <li>For technical support contact: <strong>DPHE Headquarters, Dhaka</strong></li>
+        </ul>
+      </div>
+
+      <div style="margin-top:14px;background:#d4edda;border-radius:8px;padding:12px 16px;border-left:4px solid #27ae60;">
+        <p style="font-size:12px;color:#155724;">
+          🔗 <strong>System URL:</strong> https://pedp4dphe.github.io/Allocation-expenditure/ &nbsp;|&nbsp;
+          📧 <strong>For support:</strong> Contact DPHE HQ &nbsp;|&nbsp;
+          🖥️ <strong>Works on:</strong> Any browser — Chrome, Firefox, Edge
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <footer>
   PEDP4-DPHE Financial Management System &nbsp;|&nbsp; Actual Allocation-Expenditure Entry &nbsp;|&nbsp; DPE-DPHE
 </footer>
@@ -245,10 +303,17 @@ window.onload = async () => {
 async function api(data) {
   const res = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(data)
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(data),
+    redirect: 'follow'
   });
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch(e) {
+    console.error('Response was not JSON:', text.substring(0, 200));
+    return { success: false, message: 'Server response error. Please try again.' };
+  }
 }
 
 // ============================================================
