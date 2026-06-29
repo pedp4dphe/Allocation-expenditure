@@ -449,35 +449,51 @@ function buildAllFYTable() {
 
   let html = `<table><thead><tr>
     <th class="left" rowspan="2" style="min-width:200px;">Economic Code & Description</th>
-    ${FY_LIST.map(fy=>'<th class="alloc-col" colspan="2" style="font-size:11px;">FY '+fy+'</th>').join('')}
+    ${FY_LIST.map(fy=>'<th style="background:#2e86c1;color:white;text-align:center;font-size:11px;" colspan="2">FY '+fy+'</th>').join('')}
+    <th style="background:#d4ac0d;color:white;font-size:11px;" rowspan="2">Total Alloc</th>
+    <th style="background:#e74c3c;color:white;font-size:11px;" rowspan="2">Total Exp</th>
+    <th style="background:#5d6d7e;color:white;font-size:11px;" rowspan="2">Total Bal</th>
+    <th style="background:#555;width:30px;" rowspan="2">⚠️</th>
   </tr><tr>
-    ${FY_LIST.map(()=>'<th class="alloc-col" style="font-size:10px;">Alloc</th><th class="exp-col" style="font-size:10px;">Exp</th>').join('')}
+    ${FY_LIST.map(()=>'<th style="background:#8e44ad;color:white;font-size:10px;">Alloc</th><th style="background:#16a085;color:white;font-size:10px;">Exp</th>').join('')}
   </tr></thead><tbody>`;
 
   codes.forEach(c => {
     const rowCls = c.is2pct ? 'two-pct-row' : '';
     const lbl = c.is2pct
-      ? '<span style="color:#7d6608;font-weight:700;">2% Cost</span>'
+      ? '<span style="color:#7d6608;font-weight:700;">2% Implementation Cost</span>'
       : '<span style="color:#1a5276;">'+c.code+'</span>';
+    const sid = safe(c.key);
+    let rA=0, rE=0;
+    FY_LIST.forEach(fy => {
+      const d = savedData[c.key]?.[fy] || {};
+      rA += parseFloat(d.alloc||0); rE += parseFloat(d.exp||0);
+    });
+    const rB=rA-rE, rOver=rA>0&&rE>rA;
+
     html += `<tr class="${rowCls}">
       <td class="ec-name">${lbl}<br><span style="font-weight:400;font-size:11px;color:#777;">${c.desc}</span></td>`;
     FY_LIST.forEach(fy => {
       const d = savedData[c.key]?.[fy] || {alloc:0,exp:0};
       const alloc=parseFloat(d.alloc||0), exp=parseFloat(d.exp||0);
-      const sid = safe(c.key+'-'+fy);
+      const over=alloc>0&&exp>alloc;
       html += `
-      <td><input class="num-input" type="text" inputmode="decimal" style="width:90px;"
+      <td><input class="num-input" type="text" inputmode="decimal" style="width:85px;"
         data-ec="${c.key}" data-fy="${fy}" data-type="alloc"
         value="${alloc>0?alloc:''}" placeholder="0.00" ${dis}
-        oninput="validateNum(this);recalcAllFY('${c.key}','${fy}')"></td>
-      <td><input class="num-input" type="text" inputmode="decimal" style="width:90px;"
+        oninput="validateNum(this);recalcAllFY('${c.key}','${fy}','${sid}')"></td>
+      <td><input class="num-input ${over?'over-alloc':''}" type="text" inputmode="decimal" style="width:85px;"
         data-ec="${c.key}" data-fy="${fy}" data-type="exp"
         value="${exp>0?exp:''}" placeholder="0.00" ${dis}
-        oninput="validateNum(this);recalcAllFY('${c.key}','${fy}')"></td>`;
+        oninput="validateNum(this);recalcAllFY('${c.key}','${fy}','${sid}')"></td>`;
     });
-    html += '</tr>';
+    html += `
+      <td style="text-align:right;font-weight:700;color:#d4ac0d;" id="afta-${sid}">${rA>0?fmt(rA):'—'}</td>
+      <td style="text-align:right;font-weight:700;color:#e74c3c;" id="afte-${sid}">${rE>0?fmt(rE):'—'}</td>
+      <td class="${rA>0?(rB<0?'bal-negative':'bal-positive'):''}" id="aftb-${sid}">${rA>0?fmt(rB):'—'}</td>
+      <td id="aftw-${sid}">${rOver?'<span class="warn-icon">⚠️</span>':''}</td>
+    </tr>`;
   });
-  html += '</tbody></table>';
   document.getElementById('entry-table-wrap').innerHTML = html;
 }
 
@@ -530,7 +546,7 @@ function recalc(ecKey, fy) {
 }
 
 // ── Recalc (All FY table) ──
-function recalcAllFY(ecKey, fy) {
+function recalcAllFY(ecKey, fy, sid) {
   const get = type => parseFloat(
     document.querySelector(`input[data-ec="${ecKey}"][data-fy="${fy}"][data-type="${type}"]`)?.value || 0);
   const alloc=get('alloc'), exp=get('exp');
@@ -539,6 +555,24 @@ function recalcAllFY(ecKey, fy) {
   const over=alloc>0&&exp>alloc;
   const expEl=document.querySelector(`input[data-ec="${ecKey}"][data-fy="${fy}"][data-type="exp"]`);
   if (expEl) expEl.classList.toggle('over-alloc', over);
+
+  // Update row totals
+  if (!sid) sid = safe(ecKey);
+  let rA=0, rE=0;
+  FY_LIST.forEach(f => {
+    const fd = savedData[ecKey]?.[f] || {};
+    rA += parseFloat(fd.alloc||0); rE += parseFloat(fd.exp||0);
+  });
+  const rB=rA-rE, rOver=rA>0&&rE>rA;
+  const ta=document.getElementById('afta-'+sid);
+  const te=document.getElementById('afte-'+sid);
+  const tb=document.getElementById('aftb-'+sid);
+  const tw=document.getElementById('aftw-'+sid);
+  if(ta) ta.textContent=rA>0?fmt(rA):'—';
+  if(te) te.textContent=rE>0?fmt(rE):'—';
+  if(tb){tb.textContent=rA>0?fmt(rB):'—';tb.className=rA>0?(rB<0?'bal-negative':'bal-positive'):'';}
+  if(tw) tw.innerHTML=rOver?'<span class="warn-icon">⚠️</span>':'';
+  updateTotalsBar();
 }
 
 // ── Validate input ──
