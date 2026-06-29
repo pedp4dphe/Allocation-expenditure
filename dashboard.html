@@ -267,8 +267,8 @@ const session = JSON.parse(localStorage.getItem('pedp4_session') || 'null');
 if (!session || !session.token) window.location.href = 'index.html';
 if (session && session.role === 'admin') window.location.href = 'hq.html';
 
-document.getElementById('hdr-office').textContent = session.officeName;
-document.getElementById('hdr-ddoid').textContent = 'DDO ID: ' + session.ddoId;
+document.getElementById('hdr-office').textContent = session?.officeName || '...';
+document.getElementById('hdr-ddoid').textContent = 'DDO ID: ' + (session?.ddoId || '...');
 
 let allCodes = [];
 let savedData = {};
@@ -300,11 +300,25 @@ window.onload = async () => {
 
   try {
     const ecRes = await api({action: 'getEconomicCodes'});
-    if (!ecRes.success) throw new Error('Failed to load economic codes: ' + ecRes.message);
+    if (!ecRes.success) {
+      if (ecRes.message && ecRes.message.includes('Session expired')) {
+        localStorage.removeItem('pedp4_session');
+        window.location.href = 'index.html';
+        return;
+      }
+      throw new Error('Failed to load economic codes: ' + ecRes.message);
+    }
     allCodes = ecRes.codes;
 
     const dataRes = await api({action: 'getData'});
-    if (!dataRes.success) throw new Error('Failed to load data: ' + dataRes.message);
+    if (!dataRes.success) {
+      if (dataRes.message && dataRes.message.includes('Session expired')) {
+        localStorage.removeItem('pedp4_session');
+        window.location.href = 'index.html';
+        return;
+      }
+      throw new Error('Failed to load data: ' + dataRes.message);
+    }
 
     if (dataRes.rows && dataRes.rows.length > 0) {
       const h = dataRes.headers;
@@ -324,13 +338,16 @@ window.onload = async () => {
       });
     }
 
+    // Update header with actual office name
+    document.getElementById('hdr-office').textContent = session.officeName;
+    document.getElementById('hdr-ddoid').textContent = 'DDO ID: ' + session.ddoId;
+
     buildFYButtons();
     updateStatusBadge();
-    // Hide loading message
     msgEl.style.display = 'none';
     if (isSubmitted) showMsg('entry-msg', 'Your data has been submitted. Contact HQ to unlock for editing.', 'info');
   } catch(e) {
-    msgEl.textContent = 'Error loading data: ' + e.message + '. Please logout and login again.';
+    msgEl.textContent = 'Error: ' + e.message + ' — Please logout and login again.';
     msgEl.className = 'msg error';
     msgEl.style.display = 'block';
   }
@@ -559,7 +576,7 @@ function recalcAll(ec, fy) {
   const expEl = document.querySelector(`input[data-ec="${ec}"][data-fy="${fy}"][data-type="exp"]`);
   if (expEl) expEl.classList.toggle('over-alloc', over);
 
-  // Update memory (ec is already composite key ecKey)
+  // Update memory
   if (!savedData[ec]) savedData[ec] = {};
   savedData[ec][fy] = {alloc, exp};
 }
@@ -612,14 +629,6 @@ function recalc(ec, fy) {
   }
   if (warnEl) warnEl.innerHTML = rowOver
     ? '<span class="warn-icon" title="Total Expenditure exceeds Total Allocation!">⚠️</span>' : '';
-
-  // Recalc footer
-  recalcFooter(fy);
-}
-
-  // Update memory (ec is already composite key ecKey)
-  if (!savedData[ec]) savedData[ec] = {};
-  savedData[ec][fy] = {alloc, exp};
 
   // Recalc footer
   recalcFooter(fy);
