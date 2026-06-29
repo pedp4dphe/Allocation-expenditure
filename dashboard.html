@@ -388,14 +388,22 @@ function buildEntryTable(fy) {
   const allEC = [...allCodes.map(c => ({code: c.code, description: c.description, ecKey: c.code+'|'+c.description, is2pct: false})),
     {code: '2PCT', description: '2% Cost (Contingency / Miscellaneous)', ecKey: '2PCT|2% Cost (Contingency / Miscellaneous)', is2pct: true}];
 
-  let html = `<table><thead><tr>
-    <th class="left" style="min-width:250px;">Economic Code & Description</th>
-    <th class="alloc-hdr">Allocation<br>(Taka)</th>
-    <th class="exp-hdr">Expenditure<br>(Taka)</th>
-    <th class="bal-hdr">Balance<br>(Taka)</th>
-    <th class="pct-hdr">% Used</th>
-    <th style="background:#555;width:36px;">⚠️</th>
-  </tr></thead><tbody>`;
+  // Header — FY columns (Alloc + Exp only), then row totals
+  let html = `<table><thead>
+    <tr>
+      <th class="left" rowspan="2" style="min-width:220px;">Economic Code & Description</th>
+      <th class="alloc-hdr" colspan="2">FY ${fy}</th>
+      <th style="background:#117a65;" colspan="3">All-FY Row Totals</th>
+      <th style="background:#555;width:36px;" rowspan="2">⚠️</th>
+    </tr>
+    <tr>
+      <th class="alloc-hdr" style="font-size:11px;">Allocation (Tk)</th>
+      <th class="exp-hdr" style="font-size:11px;">Expenditure (Tk)</th>
+      <th style="background:#7d3c98;font-size:11px;color:white;">Total Alloc</th>
+      <th style="background:#1a8a5a;font-size:11px;color:white;">Total Exp</th>
+      <th style="background:#ca6f1e;font-size:11px;color:white;">Total Bal</th>
+    </tr>
+  </thead><tbody>`;
 
   let ftAlloc=0, ftExp=0;
   const dis = isSubmitted ? 'disabled' : '';
@@ -403,32 +411,46 @@ function buildEntryTable(fy) {
   allEC.forEach(c => {
     const d = savedData[c.ecKey]?.[fy] || {alloc:0, exp:0};
     const alloc = parseFloat(d.alloc || 0);
-    const exp = parseFloat(d.exp || 0);
-    const bal = alloc - exp;
-    const pct = alloc > 0 ? ((exp/alloc)*100).toFixed(1) + '%' : '—';
-    const over = alloc > 0 && exp > alloc;
+    const exp   = parseFloat(d.exp   || 0);
+    const over  = alloc > 0 && exp > alloc;
     ftAlloc += alloc; ftExp += exp;
+
+    // Calculate row totals across ALL FYs
+    let rowTotAlloc=0, rowTotExp=0;
+    FY_LIST.forEach(f => {
+      const fd = savedData[c.ecKey]?.[f] || {};
+      rowTotAlloc += parseFloat(fd.alloc || 0);
+      rowTotExp   += parseFloat(fd.exp   || 0);
+    });
+    const rowBal  = rowTotAlloc - rowTotExp;
+    const rowOver = rowTotAlloc > 0 && rowTotExp > rowTotAlloc;
 
     const rowCls = c.is2pct ? 'class="two-pct-row"' : '';
     const codeLabel = c.is2pct
       ? '<span style="color:#7d6608;font-weight:700;">2% Cost</span>'
       : '<span style="color:#1a5276;">' + c.code + '</span>';
 
-    html += `<tr ${rowCls} data-ec="${c.code}">
+    const ek = c.ecKey;
+    const safeId = ek.replace(/[^a-zA-Z0-9]/g,'_');
+
+    html += `<tr ${rowCls} data-eckey="${ek}">
       <td class="ec-name">${codeLabel}<br>
         <span style="font-weight:400;font-size:11px;color:#777;">${c.description}</span></td>
       <td><input class="num-input" type="text" inputmode="decimal"
-        data-ec="${c.code}" data-fy="${fy}" data-type="alloc"
+        data-ec="${ek}" data-fy="${fy}" data-type="alloc"
         value="${alloc > 0 ? alloc : ''}" placeholder="0.00" ${dis}
-        oninput="validateNum(this);recalc('${c.code}','${fy}')"></td>
+        oninput="validateNum(this);recalc('${ek}','${fy}')"></td>
       <td><input class="num-input ${over ? 'over-alloc' : ''}" type="text" inputmode="decimal"
-        data-ec="${c.code}" data-fy="${fy}" data-type="exp"
+        data-ec="${ek}" data-fy="${fy}" data-type="exp"
         value="${exp > 0 ? exp : ''}" placeholder="0.00" ${dis}
-        oninput="validateNum(this);recalc('${c.code}','${fy}')"></td>
-      <td class="${alloc > 0 ? (bal < 0 ? 'bal-negative' : 'bal-positive') : ''}"
-        id="bal-${c.code}">${alloc > 0 ? fmt(bal) : ''}</td>
-      <td id="pct-${c.code}" style="font-weight:600;color:${over ? '#c0392b' : '#117a65'};">${alloc > 0 ? pct : ''}</td>
-      <td id="warn-${c.code}">${over ? '<span class="warn-icon" title="Expenditure exceeds Allocation!">⚠️</span>' : ''}</td>
+        oninput="validateNum(this);recalc('${ek}','${fy}')"></td>
+      <td style="text-align:right;font-weight:700;color:#7d3c98;"
+        id="rta-${safeId}">${rowTotAlloc > 0 ? fmt(rowTotAlloc) : '—'}</td>
+      <td style="text-align:right;font-weight:700;color:#1a8a5a;"
+        id="rte-${safeId}">${rowTotExp > 0 ? fmt(rowTotExp) : '—'}</td>
+      <td class="${rowTotAlloc > 0 ? (rowBal < 0 ? 'bal-negative' : 'bal-positive') : ''}"
+        id="rtb-${safeId}">${rowTotAlloc > 0 ? fmt(rowBal) : '—'}</td>
+      <td id="warn-${safeId}">${rowOver ? '<span class="warn-icon" title="Total Expenditure exceeds Total Allocation!">⚠️</span>' : ''}</td>
     </tr>`;
   });
 
@@ -436,11 +458,10 @@ function buildEntryTable(fy) {
   const ftPct = ftAlloc > 0 ? ((ftExp/ftAlloc)*100).toFixed(1) + '%' : '—';
 
   html += `</tbody><tfoot><tr>
-    <td class="left">COLUMN TOTAL — FY ${fy}</td>
+    <td class="left">TOTAL — FY ${fy}</td>
     <td id="ft-alloc">${fmt(ftAlloc)}</td>
     <td id="ft-exp">${fmt(ftExp)}</td>
-    <td id="ft-bal">${fmt(ftBal)}</td>
-    <td id="ft-pct">${ftPct}</td>
+    <td colspan="3" style="text-align:center;font-size:12px;">FY ${fy} Balance: ${fmt(ftBal)} &nbsp;|&nbsp; ${ftPct} used</td>
     <td></td>
   </tr></tfoot></table>`;
 
@@ -547,28 +568,45 @@ function recalc(ec, fy) {
   const get = type => parseFloat(document.querySelector(
     `input[data-ec="${ec}"][data-fy="${fy}"][data-type="${type}"]`)?.value || 0);
   const alloc = get('alloc');
-  const exp = get('exp');
-  const bal = alloc - exp;
-  const pct = alloc > 0 ? ((exp/alloc)*100).toFixed(1) + '%' : '—';
-  const over = alloc > 0 && exp > alloc;
+  const exp   = get('exp');
+  const over  = alloc > 0 && exp > alloc;
 
-  const safeEc = ec.replace(/[^a-zA-Z0-9]/g,'_');
-  const balEl = document.getElementById('bal-' + safeEc);
-  const pctEl = document.getElementById('pct-' + safeEc);
-  const warnEl = document.getElementById('warn-' + safeEc);
+  // Update exp input style
   const expEl = document.querySelector(`input[data-ec="${ec}"][data-fy="${fy}"][data-type="exp"]`);
-
-  if (balEl) {
-    balEl.textContent = alloc > 0 ? fmt(bal) : '';
-    balEl.className = alloc > 0 ? (bal < 0 ? 'bal-negative' : 'bal-positive') : '';
-  }
-  if (pctEl) {
-    pctEl.textContent = alloc > 0 ? pct : '';
-    pctEl.style.color = over ? '#c0392b' : '#117a65';
-  }
-  if (warnEl) warnEl.innerHTML = over
-    ? '<span class="warn-icon" title="Expenditure exceeds Allocation!">⚠️</span>' : '';
   if (expEl) expEl.classList.toggle('over-alloc', over);
+
+  // Update memory
+  if (!savedData[ec]) savedData[ec] = {};
+  savedData[ec][fy] = {alloc, exp};
+
+  // Recalculate row totals across ALL FYs
+  const safeId = ec.replace(/[^a-zA-Z0-9]/g,'_');
+  let rowTotAlloc=0, rowTotExp=0;
+  FY_LIST.forEach(f => {
+    const fd = savedData[ec]?.[f] || {};
+    rowTotAlloc += parseFloat(fd.alloc || 0);
+    rowTotExp   += parseFloat(fd.exp   || 0);
+  });
+  const rowBal  = rowTotAlloc - rowTotExp;
+  const rowOver = rowTotAlloc > 0 && rowTotExp > rowTotAlloc;
+
+  const rtaEl = document.getElementById('rta-' + safeId);
+  const rteEl = document.getElementById('rte-' + safeId);
+  const rtbEl = document.getElementById('rtb-' + safeId);
+  const warnEl = document.getElementById('warn-' + safeId);
+
+  if (rtaEl) rtaEl.textContent = rowTotAlloc > 0 ? fmt(rowTotAlloc) : '—';
+  if (rteEl) rteEl.textContent = rowTotExp   > 0 ? fmt(rowTotExp)   : '—';
+  if (rtbEl) {
+    rtbEl.textContent = rowTotAlloc > 0 ? fmt(rowBal) : '—';
+    rtbEl.className = rowTotAlloc > 0 ? (rowBal < 0 ? 'bal-negative' : 'bal-positive') : '';
+  }
+  if (warnEl) warnEl.innerHTML = rowOver
+    ? '<span class="warn-icon" title="Total Expenditure exceeds Total Allocation!">⚠️</span>' : '';
+
+  // Recalc footer
+  recalcFooter(fy);
+}
 
   // Update memory (ec is already composite key ecKey)
   if (!savedData[ec]) savedData[ec] = {};
@@ -579,18 +617,22 @@ function recalc(ec, fy) {
 }
 
 function recalcFooter(fy) {
-  const allEC = [...allCodes.map(c => c.code), '2PCT'];
+  const allEC2 = [...allCodes.map(c => c.code+'|'+c.description),
+    '2PCT|2% Cost (Contingency / Miscellaneous)'];
   let fA=0, fE=0;
-  allEC.forEach(ec => {
-    const d = savedData[ec]?.[fy] || {};
+  allEC2.forEach(ecKey => {
+    const d = savedData[ecKey]?.[fy] || {};
     fA += parseFloat(d.alloc || 0);
-    fE += parseFloat(d.exp || 0);
+    fE += parseFloat(d.exp   || 0);
   });
   const fB = fA - fE;
   const fP = fA > 0 ? ((fE/fA)*100).toFixed(1) + '%' : '—';
   const s = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
-  s('ft-alloc', fmt(fA)); s('ft-exp', fmt(fE));
-  s('ft-bal', fmt(fB)); s('ft-pct', fP);
+  s('ft-alloc', fmt(fA));
+  s('ft-exp',   fmt(fE));
+  // Update combined footer cell
+  const ftInfo = document.querySelector('#main-table tfoot td:nth-child(4)');
+  if (ftInfo) ftInfo.textContent = `FY ${fy} Balance: ${fmt(fB)} | ${fP} used`;
 }
 
 // COLLECT DATA
