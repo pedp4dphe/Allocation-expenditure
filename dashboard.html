@@ -361,6 +361,8 @@ function updateTotalsBar() {
 }
 
 function selectFY(fy) {
+  // Sync current inputs to memory BEFORE switching
+  syncInputs();
   activeFY = fy;
   buildFYButtons();
   if (fy === 'ALL') buildAllFYTable();
@@ -590,10 +592,15 @@ function syncInputs() {
   const codes = allEC();
   fys.forEach(fy => {
     codes.forEach(c => {
-      const get = type => parseFloat(
-        document.querySelector(`input[data-ec="${c.key}"][data-fy="${fy}"][data-type="${type}"]`)?.value || 0);
-      if (!savedData[c.key]) savedData[c.key] = {};
-      savedData[c.key][fy] = {alloc:get('alloc'), exp:get('exp')};
+      const allocEl = document.querySelector(`input[data-ec="${c.key}"][data-fy="${fy}"][data-type="alloc"]`);
+      const expEl   = document.querySelector(`input[data-ec="${c.key}"][data-fy="${fy}"][data-type="exp"]`);
+      // Only update if input exists on page (avoids wiping data when switching modes)
+      if (allocEl || expEl) {
+        if (!savedData[c.key]) savedData[c.key] = {};
+        if (!savedData[c.key][fy]) savedData[c.key][fy] = {alloc:0, exp:0};
+        if (allocEl) savedData[c.key][fy].alloc = parseFloat(allocEl.value || 0);
+        if (expEl)   savedData[c.key][fy].exp   = parseFloat(expEl.value   || 0);
+      }
     });
   });
 }
