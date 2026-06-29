@@ -129,6 +129,16 @@ tfoot td { background: #1a5276; color: white; font-weight: 700; padding: 8px 10p
 .progress-bar-wrap{background:#e0e0e0;border-radius:10px;height:10px;margin-top:6px;}
 .progress-bar-fill{height:10px;border-radius:10px;background:linear-gradient(90deg,#27ae60,#2ecc71);transition:width 0.5s;}
 
+/* Gauge Charts */
+.gauges-section{background:white;border-radius:8px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:16px;}
+.gauges-section h3{font-size:14px;color:#1a5276;margin-bottom:14px;font-weight:700;border-bottom:1px solid #eee;padding-bottom:8px;}
+.gauge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+.gauge-item{text-align:center;padding:8px 4px;}
+.gauge-wrap{position:relative;width:120px;height:68px;margin:0 auto 6px;}
+.gauge-pct{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);font-size:16px;font-weight:700;}
+.gauge-code{font-size:10px;color:#1a5276;font-weight:700;margin-bottom:2px;}
+.gauge-label{font-size:11px;color:#555;line-height:1.3;min-height:28px;display:flex;align-items:center;justify-content:center;}
+
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 5px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -176,35 +186,26 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
     <div class="stat-card purple"><div class="snum" id="sc-pct">—</div><div class="slbl">Overall Progress %</div></div>
   </div>
 
-  <!-- Charts -->
-  <div class="chart-grid">
-    <div class="chart-card">
-      <h4>🥧 Expenditure by Economic Code</h4>
-      <canvas id="chart-ec-pie" height="220"></canvas>
-    </div>
+  <!-- Submission Status Chart -->
+  <div class="chart-grid" style="grid-template-columns:1fr 1fr;">
     <div class="chart-card">
       <h4>📋 Submission Status</h4>
       <canvas id="chart-submission" height="220"></canvas>
     </div>
-  </div>
-
-  <!-- EC Filter Bar Chart -->
-  <div class="chart-card" style="margin-bottom:16px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
-      <h4 style="margin:0;">📈 Allocation vs Expenditure by Economic Code</h4>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <label style="font-size:12px;font-weight:600;color:#555;">Select Codes:</label>
-        <select id="ec-chart-filter" multiple
-          style="padding:5px 8px;border:1px solid #ccc;border-radius:5px;font-size:12px;min-width:220px;height:70px;">
-        </select>
-        <button class="btn btn-primary" style="padding:6px 12px;font-size:12px;"
-          onclick="refreshECChart()">🔄 Update</button>
-        <button class="btn btn-nav" style="padding:6px 12px;font-size:12px;"
-          onclick="selectAllECs()">All</button>
+    <div class="chart-card">
+      <h4>📊 Overall Budget Progress</h4>
+      <div id="overall-budget-info" style="text-align:center;padding:20px;color:#888;font-size:13px;">
+        Enter project budgets in the Economic Codes tab to see budget progress.
       </div>
     </div>
-    <canvas id="chart-eccode" height="120"></canvas>
-    <p style="font-size:11px;color:#888;margin-top:6px;">Hold Ctrl/Cmd to select multiple codes. Click All to show all codes.</p>
+  </div>
+
+  <!-- Gauge Section -->
+  <div class="gauges-section" id="hq-gauges-section">
+    <h3>📊 Progress by Economic Code — % of Project Budget Used (Exp ÷ Budget)</h3>
+    <div class="gauge-grid" id="hq-gauge-grid">
+      <p style="color:#888;font-size:13px;">Loading...</p>
+    </div>
   </div>
 
   <!-- Office Status Table -->
@@ -298,10 +299,11 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
     </div>
     <button class="btn btn-green" onclick="addEconomicCode()">Add Economic Code</button>
   </div>
+  <div class="msg" id="budget-msg"></div>
   <div class="data-table-wrap">
     <table id="codes-table">
-      <thead><tr><th>#</th><th>Code ID</th><th>Economic Code</th><th>Description</th></tr></thead>
-      <tbody id="codes-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;">Loading...</td></tr></tbody>
+      <thead><tr><th>#</th><th>Economic Code</th><th>Description</th><th>Project Budget (Tk)</th><th>Save</th></tr></thead>
+      <tbody id="codes-tbody"><tr><td colspan="5" style="text-align:center;padding:20px;">Loading...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -357,6 +359,11 @@ window.onload = async () => {
   showMsg('ov-msg', 'Loading data, please wait...', 'info');
 
   try {
+    // Load budgets first
+    const budgetRes = await api({ action: 'hqGetBudgets' });
+    if (budgetRes.success) window._hqBudgets = budgetRes.budgets || {};
+    else window._hqBudgets = {};
+
     const offRes = await api({ action: 'getOffices' });
     if (offRes.success) {
       allOffices = offRes.offices;
@@ -521,69 +528,30 @@ async function loadOverview() {
   setTimeout(() => buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, totBal), 200);
 }
 
+function buildGaugeSVG(pct, color) {
+  const R = 50, cx = 60, cy = 60;
+  const startAngle = Math.PI;
+  const angle = startAngle - (Math.min(pct,100) / 100) * Math.PI;
+  const x1 = cx + R * Math.cos(startAngle);
+  const y1 = cy + R * Math.sin(startAngle);
+  const x2 = cx + R * Math.cos(angle);
+  const y2 = cy + R * Math.sin(angle);
+  const largeArc = pct > 50 ? 1 : 0;
+  return `<svg viewBox="0 0 120 65" xmlns="http://www.w3.org/2000/svg">
+    <path d="M ${cx-R} ${cy} A ${R} ${R} 0 0 1 ${cx+R} ${cy}"
+      fill="none" stroke="#e0e0e0" stroke-width="12" stroke-linecap="round"/>
+    ${pct > 0 ? `<path d="M ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2}"
+      fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"/>` : ''}
+    <circle cx="${cx-R}" cy="${cy}" r="5" fill="${color}" opacity="0.4"/>
+    <circle cx="${cx+R}" cy="${cy}" r="5" fill="${color}" opacity="0.4"/>
+  </svg>`;
+}
+
 function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, totBal) {
   const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+  const budgets = window._hqBudgets || {};
 
-  // Build ecMap for all charts
-  const ecMap = {};
-  allDataRows.forEach(row => {
-    const ecKey = row[4];
-    const ecLabel = row[4] + ' — ' + (row[5] || '').substring(0, 25);
-    if (!ecMap[ecKey]) ecMap[ecKey] = { label: ecLabel, alloc: 0, exp: 0 };
-    FY_LIST.forEach(fy => {
-      ecMap[ecKey].alloc += parseFloat(row[allDataHeaders.indexOf('Alloc_' + fy)] || 0);
-      ecMap[ecKey].exp   += parseFloat(row[allDataHeaders.indexOf('Exp_'   + fy)] || 0);
-    });
-  });
-  window._hqEcMap = ecMap; // store globally for filter use
-
-  // Populate EC filter dropdown
-  const ecSel = document.getElementById('ec-chart-filter');
-  if (ecSel && ecSel.options.length === 0) {
-    Object.keys(ecMap).forEach(k => {
-      const opt = document.createElement('option');
-      opt.value = k;
-      opt.textContent = ecMap[k].label;
-      opt.selected = true;
-      ecSel.appendChild(opt);
-    });
-  }
-
-  // 1. EC Contribution Pie Chart
-  if (hqCharts.ecpie) hqCharts.ecpie.destroy();
-  const pctx = document.getElementById('chart-ec-pie');
-  if (pctx && Object.keys(ecMap).length > 0) {
-    const ecKeys = Object.keys(ecMap);
-    const colors = [
-      '#2980b9','#27ae60','#e74c3c','#f39c12','#8e44ad',
-      '#16a085','#d35400','#2c3e50','#c0392b','#1abc9c',
-      '#e67e22','#3498db','#9b59b6','#1e8449','#7f8c8d',
-      '#f1c40f','#e91e63','#00bcd4','#ff5722','#607d8b'
-    ];
-    hqCharts.ecpie = new Chart(pctx, {
-      type: 'pie',
-      data: {
-        labels: ecKeys.map(k => ecMap[k].label),
-        datasets: [{
-          data: ecKeys.map(k => ecMap[k].exp),
-          backgroundColor: colors.slice(0, ecKeys.length),
-          borderWidth: 1
-        }]
-      },
-      options: {
-        plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 }},
-          tooltip: { callbacks: {
-            label: ctx => ' ' + ctx.label + ': Tk ' +
-              Number(ctx.raw).toLocaleString('en-IN') +
-              ' (' + (totExp > 0 ? ((ctx.raw/totExp)*100).toFixed(1) : 0) + '%)'
-          }}
-        }
-      }
-    });
-  }
-
-  // 2. Submission status donut
+  // 1. Submission status donut
   if (hqCharts.submission) hqCharts.submission.destroy();
   const sctx = document.getElementById('chart-submission');
   if (sctx) {
@@ -591,11 +559,8 @@ function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, tot
       type: 'doughnut',
       data: {
         labels: ['Submitted', 'Draft', 'Not Started'],
-        datasets: [{
-          data: [submitted, draft, notStarted],
-          backgroundColor: ['#27ae60', '#f39c12', '#bdc3c7'],
-          borderWidth: 0
-        }]
+        datasets: [{ data: [submitted, draft, notStarted],
+          backgroundColor: ['#27ae60','#f39c12','#bdc3c7'], borderWidth: 0 }]
       },
       options: {
         plugins: {
@@ -607,58 +572,90 @@ function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, tot
     });
   }
 
-  // 3. EC bar chart (all codes initially)
-  buildECBarChart(Object.keys(ecMap));
-}
-
-function buildECBarChart(selectedKeys) {
-  const ecMap = window._hqEcMap || {};
-  if (hqCharts.eccode) hqCharts.eccode.destroy();
-  const ecctx = document.getElementById('chart-eccode');
-  if (!ecctx || selectedKeys.length === 0) return;
-
-  const labels  = selectedKeys.map(k => ecMap[k]?.label || k);
-  const allocData = selectedKeys.map(k => ecMap[k]?.alloc || 0);
-  const expData   = selectedKeys.map(k => ecMap[k]?.exp   || 0);
-
-  const fmtV = v => {
-    if(Math.abs(v)>=10000000) return (v/10000000).toFixed(1)+'Cr';
-    if(Math.abs(v)>=100000) return (v/100000).toFixed(1)+'L';
-    return Number(v).toLocaleString('en-IN');
-  };
-
-  hqCharts.eccode = new Chart(ecctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'Allocation', data: allocData, backgroundColor: 'rgba(125,60,152,0.75)' },
-        { label: 'Expenditure', data: expData,  backgroundColor: 'rgba(39,174,96,0.85)'  }
-      ]
-    },
-    options: {
-      indexAxis: 'y',
-      plugins: { legend: { position: 'bottom' }},
-      scales: {
-        x: { beginAtZero: true, ticks: { callback: fmtV }},
-        y: { ticks: { font: { size: 10 }}}
-      }
+  // 2. Overall budget progress card
+  const budgetDiv = document.getElementById('overall-budget-info');
+  if (budgetDiv) {
+    const totalBudget = Object.values(budgets).reduce((s,v) => s + parseFloat(v||0), 0);
+    if (totalBudget > 0) {
+      const bPct = ((totExp/totalBudget)*100).toFixed(1);
+      const bColor = totExp > totalBudget ? '#c0392b' : parseFloat(bPct) >= 80 ? '#27ae60' : parseFloat(bPct) >= 50 ? '#f39c12' : '#e67e22';
+      const svg = buildGaugeSVG(parseFloat(bPct), bColor);
+      budgetDiv.innerHTML = `
+        <div style="width:120px;height:68px;position:relative;margin:0 auto 8px;">
+          ${svg}
+          <div style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);font-size:20px;font-weight:700;color:${bColor};">${bPct}%</div>
+        </div>
+        <div style="font-size:12px;color:#555;">
+          Budget: <strong>${fmtS(totalBudget)}</strong><br>
+          Exp: <strong>${fmtS(totExp)}</strong><br>
+          Balance: <strong style="color:${totExp>totalBudget?'#c0392b':'#27ae60'};">${fmtS(totalBudget-totExp)}</strong>
+        </div>`;
+    } else {
+      budgetDiv.innerHTML = '<p style="color:#888;font-size:12px;padding:10px;">Enter project budgets in the Economic Codes tab to see budget progress.</p>';
     }
+  }
+
+  // 3. Build EC gauges (% of budget used per code)
+  buildHQGauges(budgets);
+}
+
+function buildHQGauges(budgets) {
+  const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+  const grid = document.getElementById('hq-gauge-grid');
+  if (!grid) return;
+
+  // Build ecMap from allDataRows
+  const ecMap = {};
+  allDataRows.forEach(row => {
+    const ecKey = row[4] + '|' + row[5];
+    if (!ecMap[ecKey]) ecMap[ecKey] = { code: row[4], desc: row[5], alloc: 0, exp: 0 };
+    FY_LIST.forEach(fy => {
+      ecMap[ecKey].alloc += parseFloat(row[allDataHeaders.indexOf('Alloc_'+fy)]||0);
+      ecMap[ecKey].exp   += parseFloat(row[allDataHeaders.indexOf('Exp_'+fy)]||0);
+    });
   });
+
+  const items = Object.entries(ecMap);
+  if (items.length === 0) {
+    grid.innerHTML = '<p style="color:#888;font-size:13px;">No expenditure data submitted yet.</p>';
+    return;
+  }
+
+  grid.innerHTML = items.map(([ecKey, d]) => {
+    const budget = parseFloat(budgets[ecKey] || 0);
+    const alloc  = d.alloc, exp = d.exp;
+
+    // Show budget gauge if budget set, else allocation gauge
+    const base    = budget > 0 ? budget : alloc;
+    const baseLabel = budget > 0 ? 'Budget' : 'Allocation';
+    const pct     = base > 0 ? Math.min((exp/base)*100, 150) : 0;
+    const rawPct  = base > 0 ? ((exp/base)*100).toFixed(1) : '—';
+    const over    = base > 0 && exp > base;
+    const color   = over ? '#c0392b' : pct >= 80 ? '#27ae60' : pct >= 50 ? '#f39c12' : '#e67e22';
+    const svg     = buildGaugeSVG(pct, color);
+
+    return `<div class="gauge-item">
+      <div class="gauge-code">${d.code}</div>
+      <div class="gauge-wrap">
+        ${svg}
+        <div class="gauge-pct" style="color:${color};">${rawPct}${rawPct!=='—'?'%':''}</div>
+      </div>
+      <div class="gauge-label">${d.desc.substring(0,35)}${d.desc.length>35?'…':''}</div>
+      <div style="font-size:10px;color:#888;margin-top:2px;">
+        Exp: ${fmtS(exp)}<br>
+        ${baseLabel}: ${fmtS(base)}
+      </div>
+      ${over ? '<div style="color:#c0392b;font-size:10px;font-weight:700;">⚠️ Over '+baseLabel+'</div>' : ''}
+    </div>`;
+  }).join('');
 }
 
-function refreshECChart() {
-  const sel = document.getElementById('ec-chart-filter');
-  const selected = Array.from(sel.selectedOptions).map(o => o.value);
-  if (selected.length === 0) { alert('Please select at least one economic code.'); return; }
-  buildECBarChart(selected);
-}
+const fmtS = n => {
+  if(Math.abs(n)>=10000000) return (n/10000000).toFixed(2)+' Cr';
+  if(Math.abs(n)>=100000) return (n/100000).toFixed(2)+' Lac';
+  return Number(n).toLocaleString('en-IN',{maximumFractionDigits:0});
+};
 
-function selectAllECs() {
-  const sel = document.getElementById('ec-chart-filter');
-  Array.from(sel.options).forEach(o => o.selected = true);
-  buildECBarChart(Array.from(sel.options).map(o => o.value));
-}
 
 async function unlockOffice(userID, officeName) {
   if (!confirm(`Unlock data for ${officeName}? They will be able to edit their submission.`)) return;
@@ -854,14 +851,40 @@ async function addOffice() {
 function renderCodesTable() {
   const tbody = document.getElementById('codes-tbody');
   tbody.innerHTML = '';
+  const budgets = window._hqBudgets || {};
   allCodes.forEach((c, i) => {
+    const ecKey = c.code + '|' + c.description;
+    const budget = budgets[ecKey] || 0;
     tbody.innerHTML += `<tr>
       <td>${i+1}</td>
-      <td style="font-size:11px;color:#666;">${c.id}</td>
       <td style="font-weight:600;color:#1a5276;">${c.code}</td>
       <td>${c.description}</td>
+      <td><input type="text" inputmode="decimal"
+        id="budget-${i}"
+        value="${budget > 0 ? budget : ''}"
+        placeholder="0.00"
+        style="width:140px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;text-align:right;"
+        oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
+      </td>
+      <td><button class="btn btn-save btn-sm"
+        onclick="saveBudget('${c.code}','${c.description.replace(/'/g,"\'")}',${i})">
+        💾 Save
+      </button></td>
     </tr>`;
   });
+}
+
+async function saveBudget(code, description, idx) {
+  const input = document.getElementById('budget-' + idx);
+  const budget = parseFloat(input.value) || 0;
+  const res = await api({ action: 'hqSaveBudget', economicCode: code, ecDescription: description, budget });
+  showMsg('budget-msg', res.message, res.success ? 'success' : 'error');
+  if (res.success) {
+    if (!window._hqBudgets) window._hqBudgets = {};
+    window._hqBudgets[code + '|' + description] = budget;
+    // Refresh gauges
+    await loadOverview();
+  }
 }
 
 async function addEconomicCode() {
