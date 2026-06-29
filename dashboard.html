@@ -293,16 +293,22 @@ async function api(data) {
 
 // INIT
 window.onload = async () => {
-  showMsg('entry-msg', 'Loading your data...', 'info');
+  const msgEl = document.getElementById('entry-msg');
+  msgEl.textContent = 'Loading your data...';
+  msgEl.className = 'msg info';
+  msgEl.style.display = 'block';
+
   try {
     const ecRes = await api({action: 'getEconomicCodes'});
-    if (ecRes.success) allCodes = ecRes.codes;
+    if (!ecRes.success) throw new Error('Failed to load economic codes: ' + ecRes.message);
+    allCodes = ecRes.codes;
 
     const dataRes = await api({action: 'getData'});
-    if (dataRes.success && dataRes.rows.length > 0) {
+    if (!dataRes.success) throw new Error('Failed to load data: ' + dataRes.message);
+
+    if (dataRes.rows && dataRes.rows.length > 0) {
       const h = dataRes.headers;
       dataRes.rows.forEach(row => {
-        // Use code|description as composite key to handle same code, different description
         const ecKey = row[4] + '|' + row[5];
         if (!savedData[ecKey]) savedData[ecKey] = {};
         FY_LIST.forEach(fy => {
@@ -320,10 +326,13 @@ window.onload = async () => {
 
     buildFYButtons();
     updateStatusBadge();
-    document.getElementById('entry-msg').style.display = 'none';
+    // Hide loading message
+    msgEl.style.display = 'none';
     if (isSubmitted) showMsg('entry-msg', 'Your data has been submitted. Contact HQ to unlock for editing.', 'info');
   } catch(e) {
-    showMsg('entry-msg', 'Error loading data: ' + e.message, 'error');
+    msgEl.textContent = 'Error loading data: ' + e.message + '. Please logout and login again.';
+    msgEl.className = 'msg error';
+    msgEl.style.display = 'block';
   }
 };
 
