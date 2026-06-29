@@ -314,6 +314,20 @@ function buildFYButtons() {
   wrap.innerHTML = '';
   let filled = 0, partial = 0;
 
+  // All FY button first
+  const allBtn = document.createElement('button');
+  allBtn.className = 'fy-btn' + (activeFY === 'ALL' ? ' active' : '');
+  allBtn.style.cssText = 'background:linear-gradient(135deg,#1a5276,#2980b9);color:white;border-color:#1a5276;';
+  allBtn.textContent = '📋 All Financial Years';
+  allBtn.onclick = () => selectFY('ALL');
+  wrap.appendChild(allBtn);
+
+  // Separator
+  const sep = document.createElement('span');
+  sep.style.cssText = 'color:#ccc;font-size:18px;line-height:34px;margin:0 4px;';
+  sep.textContent = '|';
+  wrap.appendChild(sep);
+
   FY_LIST.forEach(fy => {
     const allEC = [...allCodes.map(c => c.code), '2PCT'];
     const withData = allEC.filter(ec => {
@@ -340,7 +354,11 @@ function buildFYButtons() {
 function selectFY(fy) {
   activeFY = fy;
   buildFYButtons();
-  buildEntryTable(fy);
+  if (fy === 'ALL') {
+    buildAllFYTable();
+  } else {
+    buildEntryTable(fy);
+  }
   document.getElementById('inline-save').style.display = 'flex';
 }
 
@@ -573,11 +591,14 @@ function collectRows() {
 function syncCurrentFY() {
   if (!activeFY) return;
   const allEC = [...allCodes.map(c => c.code), '2PCT'];
-  allEC.forEach(ec => {
-    const get = type => parseFloat(document.querySelector(
-      `input[data-ec="${ec}"][data-fy="${activeFY}"][data-type="${type}"]`)?.value || 0);
-    if (!savedData[ec]) savedData[ec] = {};
-    savedData[ec][activeFY] = {alloc: get('alloc'), exp: get('exp')};
+  const fysToSync = activeFY === 'ALL' ? FY_LIST : [activeFY];
+  fysToSync.forEach(fy => {
+    allEC.forEach(ec => {
+      const get = type => parseFloat(document.querySelector(
+        `input[data-ec="${ec}"][data-fy="${fy}"][data-type="${type}"]`)?.value || 0);
+      if (!savedData[ec]) savedData[ec] = {};
+      savedData[ec][fy] = {alloc: get('alloc'), exp: get('exp')};
+    });
   });
 }
 
