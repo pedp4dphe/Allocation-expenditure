@@ -57,10 +57,10 @@ header{background:linear-gradient(135deg,#1a5276,#2980b9);color:white;padding:10
 table{border-collapse:collapse;width:100%;font-size:12px;}
 thead th{background:#1a5276;color:white;padding:8px 10px;text-align:center;white-space:nowrap;border:1px solid #154360;}
 thead th.left{text-align:left;}
-thead th.alloc-col{background:#7d3c98;}
-thead th.exp-col{background:#2471a3;}
-thead th.tot-col{background:#117a65;}
-thead th.bal-col{background:#ca6f1e;}
+thead th.alloc-col{background:#8e44ad;}
+thead th.exp-col{background:#16a085;}
+thead th.tot-col{background:#d4ac0d;}
+thead th.bal-col{background:#5d6d7e;}
 tbody td{padding:6px 8px;border:1px solid #e0e0e0;vertical-align:middle;text-align:center;}
 tbody td.ec-name{text-align:left;font-weight:600;color:#1a5276;font-size:12px;min-width:220px;}
 tbody tr:hover{background:#f0f7ff;}
@@ -143,6 +143,9 @@ footer{text-align:center;padding:12px;font-size:12px;color:#888;background:#fff;
     <button class="btn btn-excel" onclick="exportExcel()">📊 Excel</button>
     <button class="btn btn-pdf" onclick="exportPDF()">📄 PDF</button>
   </div>
+
+  <!-- Totals summary bar -->
+  <div id="totals-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;"></div>
   <div class="fy-selector">
     <h3>📅 Select Financial Year:</h3>
     <div class="fy-buttons" id="fy-buttons"></div>
@@ -255,6 +258,7 @@ window.onload = async () => {
     document.getElementById('hdr-ddoid').textContent = 'DDO ID: ' + session.ddoId;
     buildFYButtons();
     updateStatusBadge();
+    updateTotalsBar();
     msg.style.display = 'none';
     if (isSubmitted) showMsg('entry-msg','Your data has been submitted. Contact HQ to unlock.','info');
   } catch(e) {
@@ -273,7 +277,7 @@ window.onload = async () => {
 function allEC() {
   return [
     ...allCodes.map(c => ({code:c.code, desc:c.description, key:c.code+'|'+c.description, is2pct:false})),
-    {code:'2PCT', desc:'2% Cost (Contingency / Miscellaneous)', key:'2PCT|2% Cost (Contingency / Miscellaneous)', is2pct:true}
+    {code:'2PCT', desc:'2% Implementation Cost (Contingency / Miscellaneous)', key:'2PCT|2% Implementation Cost (Contingency / Miscellaneous)', is2pct:true}
   ];
 }
 function safe(str) { return str.replace(/[^a-zA-Z0-9]/g,'_'); }
@@ -321,6 +325,38 @@ function buildFYButtons() {
 
   document.getElementById('fy-progress-text').textContent =
     filled+' of 8 years complete · '+partial+' partial';
+  updateTotalsBar();
+}
+
+function updateTotalsBar() {
+  const codes = allEC();
+  let totA=0, totE=0;
+  codes.forEach(c => FY_LIST.forEach(fy => {
+    const d = savedData[c.key]?.[fy] || {};
+    totA += parseFloat(d.alloc||0);
+    totE += parseFloat(d.exp||0);
+  }));
+  const totB = totA - totE;
+  const totP = totA > 0 ? ((totE/totA)*100).toFixed(1) : 0;
+  const bar = document.getElementById('totals-bar');
+  if (!bar) return;
+  bar.innerHTML = `
+    <div style="background:white;border-radius:8px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);text-align:center;">
+      <div style="font-size:18px;font-weight:700;color:#8e44ad;">${fmtS(totA)}</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">Total Allocation (Tk)</div>
+    </div>
+    <div style="background:white;border-radius:8px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);text-align:center;">
+      <div style="font-size:18px;font-weight:700;color:#16a085;">${fmtS(totE)}</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">Total Expenditure (Tk)</div>
+    </div>
+    <div style="background:white;border-radius:8px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);text-align:center;">
+      <div style="font-size:18px;font-weight:700;color:${totB<0?'#c0392b':'#0e6655'};">${fmtS(totB)}</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">Total Balance (Tk)</div>
+    </div>
+    <div style="background:white;border-radius:8px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);text-align:center;">
+      <div style="font-size:18px;font-weight:700;color:#2980b9;">${totP}%</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">Overall Progress</div>
+    </div>`;
 }
 
 function selectFY(fy) {
@@ -341,16 +377,16 @@ function buildEntryTable(fy) {
   let html = `<table id="main-table"><thead>
     <tr>
       <th class="left" rowspan="2" style="min-width:220px;">Economic Code & Description</th>
-      <th class="alloc-col" colspan="2">FY ${fy}</th>
+      <th style="background:#2e86c1;color:white;text-align:center;" colspan="2">FY ${fy}</th>
       <th class="tot-col" colspan="3">All-Year Row Totals</th>
       <th style="background:#555;width:34px;" rowspan="2">⚠️</th>
     </tr>
     <tr>
-      <th class="alloc-col" style="font-size:11px;">Allocation (Tk)</th>
-      <th class="exp-col" style="font-size:11px;">Expenditure (Tk)</th>
-      <th class="tot-col" style="font-size:11px;">Total Alloc</th>
-      <th class="tot-col" style="font-size:11px;">Total Exp</th>
-      <th class="bal-col" style="font-size:11px;">Total Bal</th>
+      <th style="background:#8e44ad;color:white;font-size:11px;">Allocation (Tk)</th>
+      <th style="background:#16a085;color:white;font-size:11px;">Expenditure (Tk)</th>
+      <th style="background:#d4ac0d;color:white;font-size:11px;">Total Alloc</th>
+      <th style="background:#e74c3c;color:white;font-size:11px;">Total Exp</th>
+      <th style="background:#5d6d7e;color:white;font-size:11px;">Total Bal</th>
     </tr>
   </thead><tbody>`;
 
@@ -384,8 +420,8 @@ function buildEntryTable(fy) {
         data-ec="${c.key}" data-fy="${fy}" data-type="exp"
         value="${exp>0?exp:''}" placeholder="0.00" ${dis}
         oninput="validateNum(this);recalc('${c.key}','${fy}')"></td>
-      <td style="text-align:right;font-weight:700;color:#7d3c98;" id="rta-${sid}">${rA>0?fmt(rA):'—'}</td>
-      <td style="text-align:right;font-weight:700;color:#1a8a5a;" id="rte-${sid}">${rE>0?fmt(rE):'—'}</td>
+      <td style="text-align:right;font-weight:700;color:#d4ac0d;" id="rta-${sid}">${rA>0?fmt(rA):'—'}</td>
+      <td style="text-align:right;font-weight:700;color:#e74c3c;" id="rte-${sid}">${rE>0?fmt(rE):'—'}</td>
       <td class="${rA>0?(rB<0?'bal-negative':'bal-positive'):''}" id="rtb-${sid}">${rA>0?fmt(rB):'—'}</td>
       <td id="warn-${sid}">${rOver?'<span class="warn-icon" title="Total Exp exceeds Total Alloc!">⚠️</span>':''}</td>
     </tr>`;
