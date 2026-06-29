@@ -7,7 +7,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
@@ -186,23 +185,12 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
     <div class="stat-card purple"><div class="snum" id="sc-pct">—</div><div class="slbl">Overall Progress %</div></div>
   </div>
 
-  <!-- Submission Status Chart -->
-  <div class="chart-grid" style="grid-template-columns:1fr 1fr;">
-    <div class="chart-card">
-      <h4>📋 Submission Status</h4>
-      <canvas id="chart-submission" height="220"></canvas>
-    </div>
-    <div class="chart-card">
-      <h4>📊 Overall Budget Progress</h4>
-      <div id="overall-budget-info" style="text-align:center;padding:20px;color:#888;font-size:13px;">
-        Enter project budgets in the Economic Codes tab to see budget progress.
-      </div>
-    </div>
-  </div>
-
-  <!-- Gauge Section -->
+  <!-- Gauge Section — replaces all charts -->
   <div class="gauges-section" id="hq-gauges-section">
     <h3>📊 Progress by Economic Code — % of Project Budget Used (Exp ÷ Budget)</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:12px;">
+      Enter project budgets in the Economic Codes tab for Budget-based gauges. Otherwise gauges show % of Allocation used.
+    </p>
     <div class="gauge-grid" id="hq-gauge-grid">
       <p style="color:#888;font-size:13px;">Loading...</p>
     </div>
@@ -401,7 +389,7 @@ window.onload = async () => {
 // ============================================================
 // OVERVIEW
 // ============================================================
-let hqCharts = {};
+
 
 async function loadOverview() {
   document.getElementById('overview-tbody').innerHTML =
@@ -551,51 +539,7 @@ function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, tot
   const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
   const budgets = window._hqBudgets || {};
 
-  // 1. Submission status donut
-  if (hqCharts.submission) hqCharts.submission.destroy();
-  const sctx = document.getElementById('chart-submission');
-  if (sctx) {
-    hqCharts.submission = new Chart(sctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Submitted', 'Draft', 'Not Started'],
-        datasets: [{ data: [submitted, draft, notStarted],
-          backgroundColor: ['#27ae60','#f39c12','#bdc3c7'], borderWidth: 0 }]
-      },
-      options: {
-        plugins: {
-          legend: { position: 'bottom' },
-          tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.raw + ' offices' }}
-        },
-        cutout: '60%'
-      }
-    });
-  }
-
-  // 2. Overall budget progress card
-  const budgetDiv = document.getElementById('overall-budget-info');
-  if (budgetDiv) {
-    const totalBudget = Object.values(budgets).reduce((s,v) => s + parseFloat(v||0), 0);
-    if (totalBudget > 0) {
-      const bPct = ((totExp/totalBudget)*100).toFixed(1);
-      const bColor = totExp > totalBudget ? '#c0392b' : parseFloat(bPct) >= 80 ? '#27ae60' : parseFloat(bPct) >= 50 ? '#f39c12' : '#e67e22';
-      const svg = buildGaugeSVG(parseFloat(bPct), bColor);
-      budgetDiv.innerHTML = `
-        <div style="width:120px;height:68px;position:relative;margin:0 auto 8px;">
-          ${svg}
-          <div style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);font-size:20px;font-weight:700;color:${bColor};">${bPct}%</div>
-        </div>
-        <div style="font-size:12px;color:#555;">
-          Budget: <strong>${fmtS(totalBudget)}</strong><br>
-          Exp: <strong>${fmtS(totExp)}</strong><br>
-          Balance: <strong style="color:${totExp>totalBudget?'#c0392b':'#27ae60'};">${fmtS(totalBudget-totExp)}</strong>
-        </div>`;
-    } else {
-      budgetDiv.innerHTML = '<p style="color:#888;font-size:12px;padding:10px;">Enter project budgets in the Economic Codes tab to see budget progress.</p>';
-    }
-  }
-
-  // 3. Build EC gauges (% of budget used per code)
+  // Build EC gauges only — no other charts
   buildHQGauges(budgets);
 }
 
