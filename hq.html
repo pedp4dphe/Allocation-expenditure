@@ -185,13 +185,24 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
     <div class="stat-card purple"><div class="snum" id="sc-pct">—</div><div class="slbl">Overall Progress %</div></div>
   </div>
 
-  <!-- Gauge Section — replaces all charts -->
+  <!-- Gauge Section — Economic Code -->
   <div class="gauges-section" id="hq-gauges-section">
     <h3>📊 Progress by Economic Code — % of Project Budget Used (Exp ÷ Budget)</h3>
     <p style="font-size:12px;color:#888;margin-bottom:12px;">
       Enter project budgets in the Economic Codes tab for Budget-based gauges. Otherwise gauges show % of Allocation used.
     </p>
     <div class="gauge-grid" id="hq-gauge-grid">
+      <p style="color:#888;font-size:13px;">Loading...</p>
+    </div>
+  </div>
+
+  <!-- Gauge Section — District/Office -->
+  <div class="gauges-section" id="hq-district-gauges-section">
+    <h3>🗺️ Progress by District — % of Allocation Used (Exp ÷ Allocation)</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:12px;">
+      Each gauge represents one DDO office's overall expenditure against its allocation across all economic codes and years.
+    </p>
+    <div class="gauge-grid" id="hq-district-gauge-grid">
       <p style="color:#888;font-size:13px;">Loading...</p>
     </div>
   </div>
@@ -539,8 +550,9 @@ function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, tot
   const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
   const budgets = window._hqBudgets || {};
 
-  // Build EC gauges only — no other charts
+  // Build EC gauges and District gauges
   buildHQGauges(budgets);
+  buildHQDistrictGauges();
 }
 
 function buildHQGauges(budgets) {
@@ -590,6 +602,59 @@ function buildHQGauges(budgets) {
         ${baseLabel}: ${fmtS(base)}
       </div>
       ${over ? '<div style="color:#c0392b;font-size:10px;font-weight:700;">⚠️ Over '+baseLabel+'</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function buildHQDistrictGauges() {
+  const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+  const grid = document.getElementById('hq-district-gauge-grid');
+  if (!grid) return;
+
+  // Group all rows by office
+  const officeTotals = {};
+  allDataRows.forEach(row => {
+    const office = row[2];
+    if (!officeTotals[office]) officeTotals[office] = { alloc: 0, exp: 0 };
+    FY_LIST.forEach(fy => {
+      officeTotals[office].alloc += parseFloat(row[allDataHeaders.indexOf('Alloc_'+fy)]||0);
+      officeTotals[office].exp   += parseFloat(row[allDataHeaders.indexOf('Exp_'+fy)]||0);
+    });
+  });
+
+  const items = Object.entries(officeTotals).filter(([, d]) => d.alloc > 0 || d.exp > 0);
+
+  if (items.length === 0) {
+    grid.innerHTML = '<p style="color:#888;font-size:13px;">No district data submitted yet.</p>';
+    return;
+  }
+
+  // Sort by % used descending for easier scanning
+  items.sort((a, b) => {
+    const pctA = a[1].alloc > 0 ? (a[1].exp/a[1].alloc) : 0;
+    const pctB = b[1].alloc > 0 ? (b[1].exp/b[1].alloc) : 0;
+    return pctB - pctA;
+  });
+
+  grid.innerHTML = items.map(([office, d]) => {
+    const pct = d.alloc > 0 ? Math.min((d.exp/d.alloc)*100, 150) : 0;
+    const rawPct = d.alloc > 0 ? ((d.exp/d.alloc)*100).toFixed(1) : '—';
+    const over = d.alloc > 0 && d.exp > d.alloc;
+    const color = over ? '#c0392b' : pct >= 80 ? '#27ae60' : pct >= 50 ? '#f39c12' : '#e67e22';
+    const svg = buildGaugeSVG(pct, color);
+    const shortName = office.replace('DPHE Dist Office, ', '').replace('SE, ', '');
+
+    return `<div class="gauge-item">
+      <div class="gauge-code" style="font-size:11px;">${shortName}</div>
+      <div class="gauge-wrap">
+        ${svg}
+        <div class="gauge-pct" style="color:${color};">${rawPct}${rawPct!=='—'?'%':''}</div>
+      </div>
+      <div style="font-size:10px;color:#888;margin-top:2px;">
+        Exp: ${fmtS(d.exp)}<br>
+        Alloc: ${fmtS(d.alloc)}
+      </div>
+      ${over ? '<div style="color:#c0392b;font-size:10px;font-weight:700;">⚠️ Over Allocation</div>' : ''}
     </div>`;
   }).join('');
 }
