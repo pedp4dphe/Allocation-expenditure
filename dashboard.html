@@ -752,8 +752,8 @@ function gaugeSVG(pct, color) {
   const x2=cx+R*Math.cos(angle),y2=cy+R*Math.sin(angle);
   const la=pct>50?1:0;
   return `<svg viewBox="0 0 120 65" xmlns="http://www.w3.org/2000/svg">
-    <path d="M ${cx-R} ${cy} A ${R} ${R} 0 0 1 ${cx+R} ${cy}" fill="none" stroke="#e0e0e0" stroke-width="12" stroke-linecap="round"/>
-    ${pct>0?`<path d="M ${x1} ${y1} A ${R} ${R} 0 ${la} 1 ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"/>`:''}</svg>`;
+    <path d="M ${cx-R} ${cy} A ${R} ${R} 0 0 1 ${cx+R} ${cy}" fill="none" stroke="#e0e0e0" stroke-width="12" stroke-linecap="butt"/>
+    ${pct>0?`<path d="M ${x1} ${y1} A ${R} ${R} 0 ${la} 1 ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="butt"/>`:''}</svg>`;
 }
 
 // ── Export Excel ──

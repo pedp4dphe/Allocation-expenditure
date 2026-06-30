@@ -181,20 +181,20 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
     <div class="stat-card purple"><div class="snum" id="sc-notstarted">—</div><div class="slbl">Not Started</div></div>
   </div>
 
-  <h3 style="font-size:13px;color:#1a5276;margin:16px 0 8px;font-weight:700;">📈 Progress Based on Allocation (Exp ÷ Allocation)</h3>
-  <div class="stat-cards" id="stat-cards-alloc">
-    <div class="stat-card"><div class="snum" id="sc-alloc" style="font-size:18px;">—</div><div class="slbl">Total Allocation (Tk)</div></div>
-    <div class="stat-card green"><div class="snum" id="sc-exp" style="font-size:18px;">—</div><div class="slbl">Total Expenditure (Tk)</div></div>
-    <div class="stat-card red"><div class="snum" id="sc-bal" style="font-size:18px;">—</div><div class="slbl">Allocation Balance (Tk)</div></div>
-    <div class="stat-card purple"><div class="snum" id="sc-pct">—</div><div class="slbl">% of Allocation Used</div></div>
-  </div>
-
   <h3 style="font-size:13px;color:#1a5276;margin:16px 0 8px;font-weight:700;">💰 Progress Based on Project Budget (Exp ÷ Budget)</h3>
   <div class="stat-cards" id="stat-cards-budget">
     <div class="stat-card"><div class="snum" id="sc-budget" style="font-size:18px;">—</div><div class="slbl">Total Project Budget (Tk)</div></div>
     <div class="stat-card green"><div class="snum" id="sc-bexp" style="font-size:18px;">—</div><div class="slbl">Total Expenditure (Tk)</div></div>
     <div class="stat-card red"><div class="snum" id="sc-bbal" style="font-size:18px;">—</div><div class="slbl">Budget Balance (Tk)</div></div>
     <div class="stat-card purple"><div class="snum" id="sc-bpct">—</div><div class="slbl">% of Budget Used</div></div>
+  </div>
+
+  <h3 style="font-size:13px;color:#1a5276;margin:16px 0 8px;font-weight:700;">📈 Progress Based on Allocation (Exp ÷ Allocation)</h3>
+  <div class="stat-cards" id="stat-cards-alloc">
+    <div class="stat-card"><div class="snum" id="sc-alloc" style="font-size:18px;">—</div><div class="slbl">Total Allocation (Tk)</div></div>
+    <div class="stat-card green"><div class="snum" id="sc-exp" style="font-size:18px;">—</div><div class="slbl">Total Expenditure (Tk)</div></div>
+    <div class="stat-card red"><div class="snum" id="sc-bal" style="font-size:18px;">—</div><div class="slbl">Allocation Balance (Tk)</div></div>
+    <div class="stat-card purple"><div class="snum" id="sc-pct">—</div><div class="slbl">% of Allocation Used</div></div>
   </div>
 
   <!-- Gauge Section — Economic Code (Budget-based) -->
@@ -204,17 +204,6 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
       Codes without a project budget entered show ⚪ "No budget set" instead of a percentage. Enter budgets in the Economic Codes tab.
     </p>
     <div class="gauge-grid" id="hq-gauge-grid">
-      <p style="color:#888;font-size:13px;">Loading...</p>
-    </div>
-  </div>
-
-  <!-- Gauge Section — Economic Code (Allocation-based) -->
-  <div class="gauges-section" id="hq-gauges-alloc-section">
-    <h3>📊 Progress by Economic Code — % of Allocation Used (Exp ÷ Allocation)</h3>
-    <p style="font-size:12px;color:#888;margin-bottom:12px;">
-      Based on what DDOs actually allocated and spent, regardless of project budget.
-    </p>
-    <div class="gauge-grid" id="hq-gauge-alloc-grid">
       <p style="color:#888;font-size:13px;">Loading...</p>
     </div>
   </div>
@@ -572,9 +561,9 @@ function buildGaugeSVG(pct, color) {
   const largeArc = pct > 50 ? 1 : 0;
   return `<svg viewBox="0 0 120 65" xmlns="http://www.w3.org/2000/svg">
     <path d="M ${cx-R} ${cy} A ${R} ${R} 0 0 1 ${cx+R} ${cy}"
-      fill="none" stroke="#e0e0e0" stroke-width="12" stroke-linecap="round"/>
+      fill="none" stroke="#e0e0e0" stroke-width="12" stroke-linecap="butt"/>
     ${pct > 0 ? `<path d="M ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2}"
-      fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"/>` : ''}
+      fill="none" stroke="${color}" stroke-width="12" stroke-linecap="butt"/>` : ''}
     <circle cx="${cx-R}" cy="${cy}" r="5" fill="${color}" opacity="0.4"/>
     <circle cx="${cx+R}" cy="${cy}" r="5" fill="${color}" opacity="0.4"/>
   </svg>`;
@@ -584,9 +573,8 @@ function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, tot
   const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
   const budgets = window._hqBudgets || {};
 
-  // Build EC gauges (budget-based + allocation-based) and District gauges
+  // Build EC gauges (budget-based) and District gauges
   buildHQGauges(budgets);
-  buildHQGaugesAlloc();
   buildHQDistrictGauges();
 }
 
@@ -649,41 +637,6 @@ function buildHQGauges(budgets) {
         Exp: ${fmtS(exp)}<br>Budget: ${fmtS(budget)}
       </div>
       ${over ? '<div style="color:#c0392b;font-size:10px;font-weight:700;">⚠️ Over Budget</div>' : ''}
-    </div>`;
-  }).join('');
-}
-
-// Strictly Allocation-based gauges
-function buildHQGaugesAlloc() {
-  const grid = document.getElementById('hq-gauge-alloc-grid');
-  if (!grid) return;
-
-  const ecMap = buildECMap();
-  const items = Object.entries(ecMap).filter(([, d]) => d.alloc > 0 || d.exp > 0);
-  if (items.length === 0) {
-    grid.innerHTML = '<p style="color:#888;font-size:13px;">No expenditure data submitted yet.</p>';
-    return;
-  }
-
-  grid.innerHTML = items.map(([ecKey, d]) => {
-    const alloc = d.alloc, exp = d.exp;
-    const pct = alloc > 0 ? Math.min((exp/alloc)*100, 150) : 0;
-    const rawPct = alloc > 0 ? ((exp/alloc)*100).toFixed(1) : '—';
-    const over = alloc > 0 && exp > alloc;
-    const color = over ? '#c0392b' : pct >= 80 ? '#27ae60' : pct >= 50 ? '#f39c12' : '#e67e22';
-    const svg = buildGaugeSVG(pct, color);
-
-    return `<div class="gauge-item">
-      <div class="gauge-code">${d.code}</div>
-      <div class="gauge-wrap">
-        ${svg}
-        <div class="gauge-pct" style="color:${color};">${rawPct}${rawPct!=='—'?'%':''}</div>
-      </div>
-      <div class="gauge-label">${d.desc.substring(0,35)}${d.desc.length>35?'…':''}</div>
-      <div style="font-size:10px;color:#888;margin-top:2px;">
-        Exp: ${fmtS(exp)}<br>Alloc: ${fmtS(alloc)}
-      </div>
-      ${over ? '<div style="color:#c0392b;font-size:10px;font-weight:700;">⚠️ Over Allocation</div>' : ''}
     </div>`;
   }).join('');
 }
