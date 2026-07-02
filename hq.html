@@ -646,6 +646,15 @@ function buildHQDistrictGauges() {
   const grid = document.getElementById('hq-district-gauge-grid');
   if (!grid) return;
 
+  // Build submission status map from allDataRows
+  const statusIdx = allDataHeaders.indexOf('Status');
+  const officeStatus = {};
+  allDataRows.forEach(row => {
+    const office = row[2];
+    if (!officeStatus[office]) officeStatus[office] = 'draft';
+    if (row[statusIdx] === 'submitted') officeStatus[office] = 'submitted';
+  });
+
   // Group all rows by office
   const officeTotals = {};
   allDataRows.forEach(row => {
@@ -664,7 +673,7 @@ function buildHQDistrictGauges() {
     return;
   }
 
-  // Sort by % used descending for easier scanning
+  // Sort by % used descending
   items.sort((a, b) => {
     const pctA = a[1].alloc > 0 ? (a[1].exp/a[1].alloc) : 0;
     const pctB = b[1].alloc > 0 ? (b[1].exp/b[1].alloc) : 0;
@@ -672,12 +681,16 @@ function buildHQDistrictGauges() {
   });
 
   grid.innerHTML = items.map(([office, d]) => {
-    const pct = d.alloc > 0 ? Math.min((d.exp/d.alloc)*100, 150) : 0;
+    const pct = d.alloc > 0 ? Math.min((d.exp/d.alloc)*100, 100) : 0;
     const rawPct = d.alloc > 0 ? ((d.exp/d.alloc)*100).toFixed(1) : '—';
     const over = d.alloc > 0 && d.exp > d.alloc;
     const color = over ? '#c0392b' : pct >= 80 ? '#27ae60' : pct >= 50 ? '#f39c12' : '#e67e22';
     const svg = buildGaugeSVG(pct, color);
     const shortName = office.replace('DPHE Dist Office, ', '').replace('SE, ', '');
+    const status = officeStatus[office] || 'draft';
+    const statusBadge = status === 'submitted'
+      ? '<div style="margin-top:4px;display:inline-block;padding:2px 8px;background:#d4edda;color:#155724;border:1px solid #28a745;border-radius:10px;font-size:10px;font-weight:700;">✅ Submitted</div>'
+      : '<div style="margin-top:4px;display:inline-block;padding:2px 8px;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:10px;font-size:10px;font-weight:700;">📝 Draft</div>';
 
     return `<div class="gauge-item">
       <div class="gauge-code" style="font-size:11px;">${shortName}</div>
@@ -689,7 +702,8 @@ function buildHQDistrictGauges() {
         Exp: ${fmtS(d.exp)}<br>
         Alloc: ${fmtS(d.alloc)}
       </div>
-      ${over ? '<div style="color:#c0392b;font-size:10px;font-weight:700;">⚠️ Over Allocation</div>' : ''}
+      ${statusBadge}
+      ${over ? '<div style="color:#c0392b;font-size:10px;font-weight:700;margin-top:2px;">⚠️ Over Allocation</div>' : ''}
     </div>`;
   }).join('');
 }
