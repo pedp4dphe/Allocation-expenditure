@@ -197,6 +197,14 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
     <div class="stat-card purple"><div class="snum" id="sc-pct">—</div><div class="slbl">% of Allocation Used</div></div>
   </div>
 
+  <!-- Implementation vs Contingency -->
+  <h3 style="font-size:13px;color:#1a5276;margin:16px 0 8px;font-weight:700;">🏗️ Implementation vs Contingency Cost</h3>
+  <div class="stat-cards" id="stat-cards-impl">
+    <div class="stat-card"><div class="snum" id="sc-impl-exp" style="font-size:18px;">—</div><div class="slbl">Implementation Cost Exp (Tk)</div></div>
+    <div class="stat-card purple"><div class="snum" id="sc-cont-exp" style="font-size:18px;">—</div><div class="slbl">Contingency Cost Exp (Tk)</div></div>
+    <div class="stat-card"><div class="snum" id="sc-cont-ratio">—</div><div class="slbl">Contingency as % of Implementation</div></div>
+  </div>
+
   <!-- Gauge Section — Economic Code (Budget-based) -->
   <div class="gauges-section" id="hq-gauges-section">
     <h3>📊 Progress by Economic Code — % of Project Budget Used (Exp ÷ Budget)</h3>
@@ -345,6 +353,16 @@ if (!session || !session.token) window.location.href = 'index.html';
 if (session && session.role !== 'admin') window.location.href = 'dashboard.html';
 
 let allOffices = [], allCodes = [], allUsers = [], allDataRows = [], allDataHeaders = [];
+
+// Implementation vs Contingency classification
+const IMPLEMENTATION_KEYS = [
+  '4111309|Sanitation and Water Supply (WASH Block)',
+  '4111308|Sinking of Tubewell (Water Source)',
+  '4111308|Water and Sanitation in DD, DPEO, UEO, URC, PTI Offices',
+  '4111308|Water Quality Test',
+  '4111201|Non-residential Buildings (Major Repair)'
+];
+function isImplementation(ecKey) { return IMPLEMENTATION_KEYS.includes(ecKey); }
 
 async function api(data) {
   const res = await fetch(API_URL, {
@@ -534,6 +552,27 @@ async function loadOverview() {
   document.getElementById('sc-exp').textContent   = fmtS(totExp);
   document.getElementById('sc-bal').textContent   = fmtS(totBal);
   document.getElementById('sc-pct').textContent   = totPct + '%';
+
+  // Implementation vs Contingency split
+  let implExp=0, contExp=0;
+  allDataRows.forEach(row => {
+    const ecKey = row[4] + '|' + row[5];
+    const FY_LIST2 = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+    let rowExp = 0;
+    FY_LIST2.forEach(fy => {
+      rowExp += parseFloat(row[allDataHeaders.indexOf('Exp_'+fy)]||0);
+    });
+    if (isImplementation(ecKey)) implExp += rowExp;
+    else contExp += rowExp;
+  });
+  const contRatio = implExp > 0 ? ((contExp/implExp)*100).toFixed(1) : '—';
+  const contColor = contRatio !== '—' && parseFloat(contRatio) > 2 ? '#c0392b' : '#27ae60';
+  const scImpl = document.getElementById('sc-impl-exp');
+  const scCont = document.getElementById('sc-cont-exp');
+  const scRatio = document.getElementById('sc-cont-ratio');
+  if (scImpl) scImpl.textContent = fmtS(implExp);
+  if (scCont) scCont.textContent = fmtS(contExp);
+  if (scRatio) { scRatio.textContent = contRatio !== '—' ? contRatio + '%' : '—'; scRatio.style.color = contColor; }
 
   // Budget-based totals
   const budgets = window._hqBudgets || {};

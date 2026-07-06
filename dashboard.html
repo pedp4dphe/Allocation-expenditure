@@ -214,6 +214,16 @@ let savedData = {};   // key: "ecCode|ecDesc", value: { fy: {alloc, exp} }
 let isSubmitted = false;
 let activeFY = null;
 
+// ── Implementation vs Contingency classification ──
+const IMPLEMENTATION_KEYS = [
+  '4111309|Sanitation and Water Supply (WASH Block)',
+  '4111308|Sinking of Tubewell (Water Source)',
+  '4111308|Water and Sanitation in DD, DPEO, UEO, URC, PTI Offices',
+  '4111308|Water Quality Test',
+  '4111201|Non-residential Buildings (Major Repair)'
+];
+function isImplementation(ecKey) { return IMPLEMENTATION_KEYS.includes(ecKey); }
+
 // ── API ──
 async function api(data) {
   const res = await fetch(API_URL, {
@@ -687,11 +697,28 @@ function buildSummary() {
     totA+=parseFloat(d.alloc||0); totE+=parseFloat(d.exp||0);
   }));
   const totB=totA-totE, totP=totA>0?((totE/totA)*100).toFixed(1):0;
+  // Implementation vs Contingency split
+  let implExp=0, contExp=0, implAlloc=0, contAlloc=0;
+  codes.forEach(c => {
+    FY_LIST.forEach(fy => {
+      const d = savedData[c.key]?.[fy] || {};
+      const a = parseFloat(d.alloc||0), e = parseFloat(d.exp||0);
+      if (isImplementation(c.key)) { implExp+=e; implAlloc+=a; }
+      else { contExp+=e; contAlloc+=a; }
+    });
+  });
+  const contRatio = implExp > 0 ? ((contExp/implExp)*100).toFixed(1) : '—';
+  const contColor = contRatio !== '—' && parseFloat(contRatio) > 2 ? '#c0392b' : '#27ae60';
+
   document.getElementById('sum-cards').innerHTML=`
     <div class="progress-card purple"><div class="pnum">${fmtS(totA)}</div><div class="plbl">Total Allocation (Tk)</div></div>
     <div class="progress-card green"><div class="pnum">${fmtS(totE)}</div><div class="plbl">Total Expenditure (Tk)</div></div>
     <div class="progress-card ${totB<0?'red':'orange'}"><div class="pnum">${fmtS(totB)}</div><div class="plbl">Balance (Tk)</div></div>
-    <div class="progress-card"><div class="pnum" style="color:#2980b9;">${totP}%</div><div class="plbl">Overall Progress</div></div>`;
+    <div class="progress-card"><div class="pnum" style="color:#2980b9;">${totP}%</div><div class="plbl">Overall Progress</div></div>
+    <div class="progress-card"><div class="pnum" style="color:#1a5276;">${fmtS(implExp)}</div><div class="plbl">Implementation Cost Exp (Tk)</div></div>
+    <div class="progress-card"><div class="pnum" style="color:#8e44ad;">${fmtS(contExp)}</div><div class="plbl">Contingency Cost Exp (Tk)</div></div>
+    <div class="progress-card"><div class="pnum" style="color:${contColor};">${contRatio}${contRatio!=='—'?'%':''}</div><div class="plbl">Contingency as % of Implementation</div></div>
+  `;
 
   // Gauges
   const grid=document.getElementById('gauge-grid');
