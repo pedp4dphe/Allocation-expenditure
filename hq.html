@@ -205,6 +205,30 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
     <div class="stat-card"><div class="snum" id="sc-cont-ratio">—</div><div class="slbl">Contingency as % of Implementation</div></div>
   </div>
 
+  <!-- District-wise Implementation vs Contingency Table -->
+  <div style="background:white;border-radius:8px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:16px;">
+    <h3 style="font-size:14px;color:#1a5276;margin-bottom:12px;font-weight:700;">
+      🏗️ Implementation vs Contingency Cost — by District
+    </h3>
+    <div style="overflow-x:auto;">
+      <table id="district-contingency-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr>
+            <th style="background:#1a5276;color:white;padding:9px 12px;text-align:left;white-space:nowrap;">District Office</th>
+            <th style="background:#2e86c1;color:white;padding:9px 12px;text-align:right;">Implementation Exp (Tk)</th>
+            <th style="background:#8e44ad;color:white;padding:9px 12px;text-align:right;">Contingency Exp (Tk)</th>
+            <th style="background:#1a5276;color:white;padding:9px 12px;text-align:right;">Total Exp (Tk)</th>
+            <th style="background:#117a65;color:white;padding:9px 12px;text-align:center;">Contingency %<br><small style="font-weight:400;">(of Implementation)</small></th>
+            <th style="background:#1a5276;color:white;padding:9px 12px;text-align:center;">Status</th>
+          </tr>
+        </thead>
+        <tbody id="district-contingency-tbody">
+          <tr><td colspan="6" style="text-align:center;padding:20px;color:#888;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Gauge Section — Economic Code (Budget-based) -->
   <div class="gauges-section" id="hq-gauges-section">
     <h3>📊 Progress by Economic Code — % of Project Budget Used (Exp ÷ Budget)</h3>
@@ -565,7 +589,7 @@ async function loadOverview() {
     if (isImplementation(ecKey)) implExp += rowExp;
     else contExp += rowExp;
   });
-  const contRatio = implExp > 0 ? ((contExp/implExp)*100).toFixed(1) : '—';
+  const contRatio = implExp > 0 ? ((contExp/implExp)*100).toFixed(2) : '—';
   const contColor = contRatio !== '—' && parseFloat(contRatio) > 2 ? '#c0392b' : '#27ae60';
   const scImpl = document.getElementById('sc-impl-exp');
   const scCont = document.getElementById('sc-cont-exp');
@@ -616,6 +640,7 @@ function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, tot
   // Build EC gauges (budget-based) and District gauges
   buildHQGauges(budgets);
   buildHQDistrictGauges();
+  buildDistrictContingencyTable();
 }
 
 function buildECMap() {
@@ -678,6 +703,66 @@ function buildHQGauges(budgets) {
       </div>
       ${over ? '<div style="color:#c0392b;font-size:10px;font-weight:700;">⚠️ Over Budget</div>' : ''}
     </div>`;
+  }).join('');
+}
+
+function buildDistrictContingencyTable() {
+  const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+  const tbody = document.getElementById('district-contingency-tbody');
+  if (!tbody) return;
+
+  // Group by office
+  const officeData = {};
+  const statusIdx = allDataHeaders.indexOf('Status');
+
+  allDataRows.forEach(row => {
+    const office = row[2].replace('DPHE Dist Office, ', '');
+    const ecKey = row[4] + '|' + row[5];
+    if (!officeData[office]) officeData[office] = { implExp: 0, contExp: 0, status: 'draft' };
+    if (row[statusIdx] === 'submitted') officeData[office].status = 'submitted';
+
+    let rowExp = 0;
+    FY_LIST.forEach(fy => {
+      rowExp += parseFloat(row[allDataHeaders.indexOf('Exp_'+fy)]||0);
+    });
+    if (isImplementation(ecKey)) officeData[office].implExp += rowExp;
+    else officeData[office].contExp += rowExp;
+  });
+
+  const offices = Object.entries(officeData)
+    .sort((a, b) => {
+      const rA = a[1].implExp > 0 ? a[1].contExp/a[1].implExp : 0;
+      const rB = b[1].implExp > 0 ? b[1].contExp/b[1].implExp : 0;
+      return rB - rA; // highest contingency ratio first
+    });
+
+  if (offices.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#888;">No data available yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = offices.map(([office, d], idx) => {
+    const ratio = d.implExp > 0 ? ((d.contExp/d.implExp)*100).toFixed(2) : '—';
+    const over = ratio !== '—' && parseFloat(ratio) > 2;
+    const ratioColor = over ? '#c0392b' : '#27ae60';
+    const ratioBg = over ? '#fdf0f0' : '#eafaf1';
+    const totalExp = d.implExp + d.contExp;
+    const statusBadge = d.status === 'submitted'
+      ? '<span style="padding:2px 8px;background:#d4edda;color:#155724;border:1px solid #28a745;border-radius:10px;font-size:10px;font-weight:700;">✅ Submitted</span>'
+      : '<span style="padding:2px 8px;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:10px;font-size:10px;font-weight:700;">📝 Draft</span>';
+    const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+    return `<tr style="background:${rowBg};">
+      <td style="padding:7px 12px;font-weight:600;color:#1a5276;border:1px solid #e0e0e0;">${office}</td>
+      <td style="padding:7px 12px;text-align:right;border:1px solid #e0e0e0;">${fmtS(d.implExp)}</td>
+      <td style="padding:7px 12px;text-align:right;border:1px solid #e0e0e0;">${fmtS(d.contExp)}</td>
+      <td style="padding:7px 12px;text-align:right;font-weight:700;border:1px solid #e0e0e0;">${fmtS(totalExp)}</td>
+      <td style="padding:7px 12px;text-align:center;background:${ratioBg};font-weight:700;color:${ratioColor};border:1px solid #e0e0e0;">
+        ${ratio}${ratio!=='—'?'%':''}
+        ${over ? ' ⚠️' : ''}
+      </td>
+      <td style="padding:7px 12px;text-align:center;border:1px solid #e0e0e0;">${statusBadge}</td>
+    </tr>`;
   }).join('');
 }
 

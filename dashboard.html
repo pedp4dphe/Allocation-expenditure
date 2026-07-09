@@ -707,7 +707,7 @@ function buildSummary() {
       else { contExp+=e; contAlloc+=a; }
     });
   });
-  const contRatio = implExp > 0 ? ((contExp/implExp)*100).toFixed(1) : '—';
+  const contRatio = implExp > 0 ? ((contExp/implExp)*100).toFixed(2) : '—';
   const contColor = contRatio !== '—' && parseFloat(contRatio) > 2 ? '#c0392b' : '#27ae60';
 
   document.getElementById('sum-cards').innerHTML=`
