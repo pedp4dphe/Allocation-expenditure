@@ -378,6 +378,13 @@ if (session && session.role !== 'admin') window.location.href = 'dashboard.html'
 
 let allOffices = [], allCodes = [], allUsers = [], allDataRows = [], allDataHeaders = [];
 
+// Global formatting helper — defined early so all functions can use it
+function fmtS(n) {
+  if (Math.abs(n) >= 10000000) return (n/10000000).toFixed(2) + ' Cr';
+  if (Math.abs(n) >= 100000)   return (n/100000).toFixed(2)   + ' Lac';
+  return Number(n).toLocaleString('en-IN', {maximumFractionDigits:0});
+}
+
 // Implementation vs Contingency classification
 const IMPLEMENTATION_KEYS = [
   '4111309|Sanitation and Water Supply (WASH Block)',
@@ -521,10 +528,10 @@ async function loadOverview() {
     // Calculate office progress
     let offPct = '—';
     if (data) {
-      const FY_LIST2 = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+      // FY_LIST is global
       let oA=0, oE=0;
       data.rows.forEach(row => {
-        FY_LIST2.forEach(fy => {
+        FY_LIST.forEach(fy => {
           oA += parseFloat(row[allDataHeaders.indexOf('Alloc_'+fy)]||0);
           oE += parseFloat(row[allDataHeaders.indexOf('Exp_'+fy)]||0);
         });
@@ -553,7 +560,6 @@ async function loadOverview() {
   document.getElementById('sc-notstarted').textContent = notStarted;
 
   // Calculate totals — split by status
-  const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
   const statusIdx = allDataHeaders.indexOf('Status');
 
   let totAlloc=0, totExp=0;
@@ -580,12 +586,6 @@ async function loadOverview() {
   const dftBal = dftAlloc - dftExp;
   const dftPct = dftAlloc > 0 ? ((dftExp/dftAlloc)*100).toFixed(1) : '—';
 
-  const fmtS = n => {
-    if(Math.abs(n)>=10000000) return (n/10000000).toFixed(2)+' Cr';
-    if(Math.abs(n)>=100000) return (n/100000).toFixed(2)+' Lac';
-    return Number(n).toLocaleString('en-IN');
-  };
-
   // Overall totals (main figures)
   document.getElementById('sc-alloc').textContent = fmtS(totAlloc);
   document.getElementById('sc-exp').textContent   = fmtS(totExp);
@@ -604,9 +604,9 @@ async function loadOverview() {
   let implExp=0, contExp=0;
   allDataRows.forEach(row => {
     const ecKey = row[4] + '|' + row[5];
-    const FY_LIST2 = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
+    // FY_LIST is global
     let rowExp = 0;
-    FY_LIST2.forEach(fy => {
+    FY_LIST.forEach(fy => {
       rowExp += parseFloat(row[allDataHeaders.indexOf('Exp_'+fy)]||0);
     });
     if (isImplementation(ecKey)) implExp += rowExp;
@@ -669,7 +669,6 @@ function buildGaugeSVG(pct, color) {
 }
 
 function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, totBal) {
-  const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
   const budgets = window._hqBudgets || {};
 
   // Build EC gauges (budget-based) and District gauges
@@ -679,7 +678,6 @@ function buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, tot
 }
 
 function buildECMap() {
-  const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
   const ecMap = {};
   allDataRows.forEach(row => {
     const ecKey = row[4] + '|' + row[5];
@@ -742,7 +740,6 @@ function buildHQGauges(budgets) {
 }
 
 function buildDistrictContingencyTable() {
-  const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
   const tbody = document.getElementById('district-contingency-tbody');
   if (!tbody) return;
 
@@ -802,7 +799,6 @@ function buildDistrictContingencyTable() {
 }
 
 function buildHQDistrictGauges() {
-  const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
   const grid = document.getElementById('hq-district-gauge-grid');
   if (!grid) return;
 
@@ -868,11 +864,6 @@ function buildHQDistrictGauges() {
   }).join('');
 }
 
-const fmtS = n => {
-  if(Math.abs(n)>=10000000) return (n/10000000).toFixed(2)+' Cr';
-  if(Math.abs(n)>=100000) return (n/100000).toFixed(2)+' Lac';
-  return Number(n).toLocaleString('en-IN',{maximumFractionDigits:0});
-};
 
 
 async function unlockOffice(userID, officeName) {
