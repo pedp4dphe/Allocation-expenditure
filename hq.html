@@ -560,7 +560,7 @@ async function loadOverview() {
   document.getElementById('sc-notstarted').textContent = notStarted;
 
   // Calculate totals — split by status
-  const statusIdx = allDataHeaders.indexOf('Status');
+  // statusIdx already declared above
 
   let totAlloc=0, totExp=0;
   let subAlloc=0, subExp=0;   // submitted only
