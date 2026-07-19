@@ -183,18 +183,18 @@ footer { text-align: center; padding: 12px; font-size: 12px; color: #888; backgr
 
   <h3 style="font-size:13px;color:#1a5276;margin:16px 0 8px;font-weight:700;">💰 Progress Based on Project Budget (Exp ÷ Budget)</h3>
   <div class="stat-cards" id="stat-cards-budget">
-    <div class="stat-card"><div class="snum" id="sc-budget" style="font-size:18px;">—</div><div class="slbl">Total Project Budget (Tk)</div></div>
-    <div class="stat-card green"><div class="snum" id="sc-bexp" style="font-size:18px;">—</div><div class="slbl">Total Expenditure (Tk)</div></div>
-    <div class="stat-card red"><div class="snum" id="sc-bbal" style="font-size:18px;">—</div><div class="slbl">Budget Balance (Tk)</div></div>
-    <div class="stat-card purple"><div class="snum" id="sc-bpct">—</div><div class="slbl">% of Budget Used</div></div>
+    <div class="stat-card"><div class="snum" id="sc-budget" style="font-size:16px;">—</div><div class="slbl">Total Project Budget (Tk)</div></div>
+    <div class="stat-card green"><div class="snum" id="sc-bexp" style="font-size:16px;">—</div><div class="slbl">Total Expenditure (Tk)<br><small style="color:#27ae60;">✅ <span id="sc-bexp-sub"></span></small><br><small style="color:#e67e22;">📝 <span id="sc-bexp-dft"></span></small></div></div>
+    <div class="stat-card red"><div class="snum" id="sc-bbal" style="font-size:16px;">—</div><div class="slbl">Budget Balance (Tk)<br><small style="color:#27ae60;">✅ <span id="sc-bbal-sub"></span></small><br><small style="color:#e67e22;">📝 <span id="sc-bbal-dft"></span></small></div></div>
+    <div class="stat-card purple"><div class="snum" id="sc-bpct">—</div><div class="slbl">% of Budget Used<br><small style="color:#27ae60;">✅ <span id="sc-bpct-sub"></span></small><br><small style="color:#e67e22;">📝 <span id="sc-bpct-dft"></span></small></div></div>
   </div>
 
   <h3 style="font-size:13px;color:#1a5276;margin:16px 0 8px;font-weight:700;">📈 Progress Based on Allocation (Exp ÷ Allocation)</h3>
   <div class="stat-cards" id="stat-cards-alloc">
-    <div class="stat-card"><div class="snum" id="sc-alloc" style="font-size:18px;">—</div><div class="slbl">Total Allocation (Tk)</div></div>
-    <div class="stat-card green"><div class="snum" id="sc-exp" style="font-size:18px;">—</div><div class="slbl">Total Expenditure (Tk)</div></div>
-    <div class="stat-card red"><div class="snum" id="sc-bal" style="font-size:18px;">—</div><div class="slbl">Allocation Balance (Tk)</div></div>
-    <div class="stat-card purple"><div class="snum" id="sc-pct">—</div><div class="slbl">% of Allocation Used</div></div>
+    <div class="stat-card"><div class="snum" id="sc-alloc" style="font-size:16px;">—</div><div class="slbl">Total Allocation (Tk)<br><small style="color:#27ae60;">✅ <span id="sc-alloc-sub"></span></small><br><small style="color:#e67e22;">📝 <span id="sc-alloc-dft"></span></small></div></div>
+    <div class="stat-card green"><div class="snum" id="sc-exp" style="font-size:16px;">—</div><div class="slbl">Total Expenditure (Tk)<br><small style="color:#27ae60;">✅ <span id="sc-exp-sub"></span></small><br><small style="color:#e67e22;">📝 <span id="sc-exp-dft"></span></small></div></div>
+    <div class="stat-card red"><div class="snum" id="sc-bal" style="font-size:16px;">—</div><div class="slbl">Allocation Balance (Tk)<br><small style="color:#27ae60;">✅ <span id="sc-bal-sub"></span></small><br><small style="color:#e67e22;">📝 <span id="sc-bal-dft"></span></small></div></div>
+    <div class="stat-card purple"><div class="snum" id="sc-pct">—</div><div class="slbl">% of Allocation Used<br><small style="color:#27ae60;">✅ <span id="sc-pct-sub"></span></small><br><small style="color:#e67e22;">📝 <span id="sc-pct-dft"></span></small></div></div>
   </div>
 
   <!-- Implementation vs Contingency -->
@@ -552,19 +552,33 @@ async function loadOverview() {
   document.getElementById('sc-draft').textContent = draft;
   document.getElementById('sc-notstarted').textContent = notStarted;
 
-  // Calculate totals from all data
+  // Calculate totals — split by status
   const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
-  let totAlloc = 0, totExp = 0;
+  const statusIdx = allDataHeaders.indexOf('Status');
+
+  let totAlloc=0, totExp=0;
+  let subAlloc=0, subExp=0;   // submitted only
+  let dftAlloc=0, dftExp=0;   // draft only
+
   allDataRows.forEach(row => {
+    const isSubmitted = row[statusIdx] === 'submitted';
     FY_LIST.forEach(fy => {
       const aIdx = allDataHeaders.indexOf('Alloc_' + fy);
       const eIdx = allDataHeaders.indexOf('Exp_' + fy);
-      totAlloc += parseFloat(row[aIdx] || 0);
-      totExp   += parseFloat(row[eIdx] || 0);
+      const a = parseFloat(row[aIdx] || 0);
+      const e = parseFloat(row[eIdx] || 0);
+      totAlloc += a; totExp += e;
+      if (isSubmitted) { subAlloc += a; subExp += e; }
+      else             { dftAlloc += a; dftExp += e; }
     });
   });
+
   const totBal = totAlloc - totExp;
   const totPct = totAlloc > 0 ? ((totExp/totAlloc)*100).toFixed(1) : 0;
+  const subBal = subAlloc - subExp;
+  const subPct = subAlloc > 0 ? ((subExp/subAlloc)*100).toFixed(1) : '—';
+  const dftBal = dftAlloc - dftExp;
+  const dftPct = dftAlloc > 0 ? ((dftExp/dftAlloc)*100).toFixed(1) : '—';
 
   const fmtS = n => {
     if(Math.abs(n)>=10000000) return (n/10000000).toFixed(2)+' Cr';
@@ -572,10 +586,19 @@ async function loadOverview() {
     return Number(n).toLocaleString('en-IN');
   };
 
+  // Overall totals (main figures)
   document.getElementById('sc-alloc').textContent = fmtS(totAlloc);
   document.getElementById('sc-exp').textContent   = fmtS(totExp);
   document.getElementById('sc-bal').textContent   = fmtS(totBal);
   document.getElementById('sc-pct').textContent   = totPct + '%';
+
+  // Submitted sub-figures
+  const s = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  s('sc-alloc-sub', fmtS(subAlloc)); s('sc-alloc-dft', fmtS(dftAlloc));
+  s('sc-exp-sub',   fmtS(subExp));   s('sc-exp-dft',   fmtS(dftExp));
+  s('sc-bal-sub',   fmtS(subBal));   s('sc-bal-dft',   fmtS(dftBal));
+  s('sc-pct-sub',   subPct !== '—' ? subPct+'%' : '—');
+  s('sc-pct-dft',   dftPct !== '—' ? dftPct+'%' : '—');
 
   // Implementation vs Contingency split
   let implExp=0, contExp=0;
@@ -598,16 +621,28 @@ async function loadOverview() {
   if (scCont) scCont.textContent = fmtS(contExp);
   if (scRatio) { scRatio.textContent = contRatio !== '—' ? contRatio + '%' : '—'; scRatio.style.color = contColor; }
 
-  // Budget-based totals
+  // Budget-based totals — split by status
   const budgets = window._hqBudgets || {};
   const totBudget = Object.values(budgets).reduce((s, v) => s + parseFloat(v || 0), 0);
-  const budgetBal = totBudget - totExp;
-  const budgetPct = totBudget > 0 ? ((totExp/totBudget)*100).toFixed(1) : 0;
+
+  const budgetBal    = totBudget - totExp;
+  const budgetPct    = totBudget > 0 ? ((totExp/totBudget)*100).toFixed(1)    : 0;
+  const subBudgetBal = totBudget - subExp;
+  const subBudgetPct = totBudget > 0 ? ((subExp/totBudget)*100).toFixed(1)    : '—';
+  const dftBudgetBal = totBudget - dftExp;
+  const dftBudgetPct = totBudget > 0 ? ((dftExp/totBudget)*100).toFixed(1)    : '—';
 
   document.getElementById('sc-budget').textContent = totBudget > 0 ? fmtS(totBudget) : 'Not Set';
-  document.getElementById('sc-bexp').textContent    = fmtS(totExp);
-  document.getElementById('sc-bbal').textContent    = totBudget > 0 ? fmtS(budgetBal) : '—';
-  document.getElementById('sc-bpct').textContent    = totBudget > 0 ? budgetPct + '%' : '—';
+  document.getElementById('sc-bexp').textContent   = fmtS(totExp);
+  document.getElementById('sc-bbal').textContent   = totBudget > 0 ? fmtS(budgetBal) : '—';
+  document.getElementById('sc-bpct').textContent   = totBudget > 0 ? budgetPct + '%' : '—';
+
+  s('sc-bexp-sub',  fmtS(subExp));
+  s('sc-bexp-dft',  fmtS(dftExp));
+  s('sc-bbal-sub',  totBudget > 0 ? fmtS(subBudgetBal) : '—');
+  s('sc-bbal-dft',  totBudget > 0 ? fmtS(dftBudgetBal) : '—');
+  s('sc-bpct-sub',  subBudgetPct !== '—' ? subBudgetPct+'%' : '—');
+  s('sc-bpct-dft',  dftBudgetPct !== '—' ? dftBudgetPct+'%' : '—');
 
   // Build charts
   setTimeout(() => buildOverviewCharts(submitted, draft, notStarted, totAlloc, totExp, totBal), 200);
