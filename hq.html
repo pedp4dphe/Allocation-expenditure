@@ -992,24 +992,32 @@ function exportAllPDF() {
   doc.setFontSize(14); doc.setTextColor(26, 82, 118);
   doc.text('PEDP4-DPHE: HQ Expenditure Report — All Offices', 14, 16);
   doc.setFontSize(9); doc.setTextColor(80);
-  doc.text(`Generated: ${new Date().toLocaleString()}   |   Records: ${allDataRows.length}   |   Figures in Hundred Taka`, 14, 23);
+  doc.text(`Generated: ${new Date().toLocaleString()}   |   Records: ${allDataRows.length}   |   Figures in Taka`, 14, 23);
 
   const head = [['Office', 'EC Code', 'Description',
-    ...filteredFY.map(fy => `FY ${fy}`),
-    'Grand Total', 'Status'
+    ...filteredFY.flatMap(fy => [`FY ${fy} Alloc`, `FY ${fy} Exp`]),
+    'Total Alloc', 'Total Exp', 'Total Bal', 'Status'
   ]];
 
   const body = allDataRows.map(row => {
-    const r = [row[2].replace('DPHE Dist Office, ', ''), row[4], row[5]];
-    let grandTotal = 0;
+    const r = [
+      row[2].replace('DPHE Dist Office, ', ''),
+      row[4],
+      row[5]
+    ];
+    let totAlloc = 0, totExp = 0;
     filteredFY.forEach(fy => {
-      const gob = parseFloat(row[allDataHeaders.indexOf('GOB_' + fy)] || 0);
-      const rpa = parseFloat(row[allDataHeaders.indexOf('RPA_' + fy)] || 0);
-      const total = gob + rpa;
-      r.push(total > 0 ? fmt(total) : '-');
-      grandTotal += total;
+      const alloc = parseFloat(row[allDataHeaders.indexOf('Alloc_' + fy)] || 0);
+      const exp   = parseFloat(row[allDataHeaders.indexOf('Exp_'   + fy)] || 0);
+      r.push(alloc > 0 ? fmt(alloc) : '-');
+      r.push(exp   > 0 ? fmt(exp)   : '-');
+      totAlloc += alloc;
+      totExp   += exp;
     });
-    r.push(grandTotal > 0 ? fmt(grandTotal) : '-');
+    const totBal = totAlloc - totExp;
+    r.push(totAlloc > 0 ? fmt(totAlloc) : '-');
+    r.push(totExp   > 0 ? fmt(totExp)   : '-');
+    r.push(fmt(totBal));
     r.push(row[allDataHeaders.indexOf('Status')] || 'draft');
     return r;
   });
