@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<!-- PEDP4-DPHE Dashboard v2.1 - Updated colors -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEDP4-DPHE | Financial Management System</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
@@ -21,11 +23,11 @@ header{background:linear-gradient(135deg,#1a5276,#2980b9);color:white;padding:10
 .user-info strong{display:block;font-size:13px;}
 .btn-logout{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;padding:6px 14px;border-radius:5px;cursor:pointer;font-size:13px;}
 .nav-tabs{background:white;border-bottom:2px solid #e0e0e0;display:flex;}
-.nav-tab{padding:11px 20px;cursor:pointer;font-size:13px;font-weight:600;color:#666;border-bottom:3px solid transparent;white-space:nowrap;transition:all 0.2s;}
+.nav-tab{padding:11px 20px;cursor:pointer;font-size:13px;font-weight:600;color:#666;border-bottom:3px solid transparent;white-space:nowrap;}
 .nav-tab.active{color:#1a5276;border-bottom-color:#1a5276;}
 .tab-content{display:none;padding:16px 20px;}
 .tab-content.active{display:block;}
-.btn{padding:8px 16px;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s;}
+.btn{padding:8px 16px;border:none;border-radius:5px;cursor:pointer;font-size:13px;font-weight:600;}
 .btn-save{background:#2980b9;color:white;}
 .btn-submit{background:#27ae60;color:white;}
 .btn-excel{background:#217346;color:white;}
@@ -44,7 +46,7 @@ header{background:linear-gradient(135deg,#1a5276,#2980b9);color:white;padding:10
 .fy-selector{background:white;padding:14px 16px;border-radius:8px;box-shadow:0 1px 6px rgba(0,0,0,0.07);margin-bottom:14px;}
 .fy-selector h3{font-size:13px;font-weight:700;color:#1a5276;margin-bottom:10px;}
 .fy-buttons{display:flex;flex-wrap:wrap;gap:8px;}
-.fy-btn{padding:7px 14px;border:2px solid #2980b9;border-radius:20px;background:white;color:#2980b9;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s;}
+.fy-btn{padding:7px 14px;border:2px solid #2980b9;border-radius:20px;background:white;color:#2980b9;cursor:pointer;font-size:13px;font-weight:600;}
 .fy-btn.active{background:#2980b9;color:white;}
 .fy-btn.complete{border-color:#27ae60;background:#eafaf1;color:#27ae60;}
 .fy-btn.active.complete{background:#27ae60;color:white;}
@@ -56,28 +58,22 @@ header{background:linear-gradient(135deg,#1a5276,#2980b9);color:white;padding:10
 .entry-header p{font-size:11px;opacity:0.85;margin-top:2px;}
 .entry-body{padding:16px;overflow-x:auto;}
 table{border-collapse:collapse;width:100%;font-size:12px;}
-thead th{background:#1a5276;color:white;padding:8px 10px;text-align:center;white-space:nowrap;border:1px solid #154360;}
+thead th{padding:8px 10px;text-align:center;white-space:nowrap;border:1px solid #154360;color:white;}
 thead th.left{text-align:left;}
-thead th.alloc-col{background:#8e44ad;}
-thead th.exp-col{background:#16a085;}
-thead th.tot-col{background:#d4ac0d;}
-thead th.bal-col{background:#5d6d7e;}
 tbody td{padding:6px 8px;border:1px solid #e0e0e0;vertical-align:middle;text-align:center;}
 tbody td.ec-name{text-align:left;font-weight:600;color:#1a5276;font-size:12px;min-width:220px;}
 tbody tr:hover{background:#f0f7ff;}
 tbody tr:nth-child(even){background:#f8fafc;}
-tbody tr:nth-child(even):hover{background:#e8f4fd;}
 tbody tr.two-pct-row{background:#fef9e7!important;}
 tfoot td{background:#1a5276;color:white;font-weight:700;padding:7px 10px;border:1px solid #154360;text-align:center;}
 tfoot td.left{text-align:left;}
-input.num-input{width:120px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;text-align:right;font-size:12px;-moz-appearance:textfield;}
-input.num-input::-webkit-outer-spin-button,input.num-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
-input.num-input:focus{border-color:#2980b9;outline:none;box-shadow:0 0 0 3px rgba(41,128,185,0.1);}
-input.num-input:disabled{background:#f5f5f5;color:#888;cursor:not-allowed;}
+input.num-input{width:120px;padding:5px 8px;border:1px solid #ccc;border-radius:4px;text-align:right;font-size:12px;}
+input.num-input:focus{border-color:#2980b9;outline:none;}
+input.num-input:disabled{background:#f5f5f5;color:#888;}
 input.num-input.over-alloc{border-color:#c0392b;background:#fdf0f0;}
 .bal-positive{background:#eafaf1;color:#1a8a5a;font-weight:700;}
 .bal-negative{background:#f8d7da;color:#c0392b;font-weight:700;}
-.warn-icon{color:#e67e22;font-size:13px;cursor:help;}
+.warn-icon{color:#e67e22;font-size:13px;}
 .inline-save{margin-top:12px;display:flex;gap:10px;align-items:center;}
 .save-time{font-size:12px;color:#27ae60;}
 .progress-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;}
@@ -87,7 +83,7 @@ input.num-input.over-alloc{border-color:#c0392b;background:#fdf0f0;}
 .progress-card.green .pnum{color:#27ae60;}
 .progress-card.red .pnum{color:#c0392b;}
 .progress-card.orange .pnum{color:#e67e22;}
-.progress-card.purple .pnum{color:#7d3c98;}
+.progress-card.purple .pnum{color:#8e44ad;}
 .gauges-section{background:white;border-radius:8px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:16px;}
 .gauges-section h3{font-size:14px;color:#1a5276;margin-bottom:14px;font-weight:700;border-bottom:1px solid #eee;padding-bottom:8px;}
 .gauge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
@@ -99,7 +95,7 @@ input.num-input.over-alloc{border-color:#c0392b;background:#fdf0f0;}
 .summary-wrap{overflow-x:auto;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.08);}
 .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;}
 .modal-overlay.show{display:flex;}
-.modal{background:white;border-radius:10px;padding:24px;max-width:480px;width:92%;box-shadow:0 8px 30px rgba(0,0,0,0.2);max-height:80vh;overflow-y:auto;}
+.modal{background:white;border-radius:10px;padding:24px;max-width:480px;width:92%;max-height:80vh;overflow-y:auto;}
 .modal h3{color:#1a5276;margin-bottom:10px;font-size:16px;}
 .modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:5px;}
@@ -132,7 +128,6 @@ footer{text-align:center;padding:12px;font-size:12px;color:#888;background:#fff;
   <div class="nav-tab" onclick="switchNav('summary')">📊 My Progress</div>
 </div>
 
-<!-- DATA ENTRY TAB -->
 <div class="tab-content active" id="nav-entry">
   <div class="msg" id="entry-msg"></div>
   <div class="status-bar">
@@ -144,8 +139,6 @@ footer{text-align:center;padding:12px;font-size:12px;color:#888;background:#fff;
     <button class="btn btn-excel" onclick="exportExcel()">📊 Excel</button>
     <button class="btn btn-pdf" onclick="exportPDF()">📄 PDF</button>
   </div>
-
-  <!-- Totals summary bar -->
   <div id="totals-bar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;"></div>
   <div class="fy-selector">
     <h3>📅 Select Financial Year:</h3>
@@ -154,12 +147,10 @@ footer{text-align:center;padding:12px;font-size:12px;color:#888;background:#fff;
   <div class="entry-card">
     <div class="entry-header">
       <h3 id="entry-fy-title">Select a Financial Year above to begin</h3>
-      <p>Enter actual figures in Taka including decimals. Total Allocation, Expenditure and Balance are shown per Economic Code across all years.</p>
+      <p>Enter actual figures in Taka including decimals.</p>
     </div>
     <div class="entry-body">
-      <div id="entry-table-wrap">
-        <p style="color:#888;text-align:center;padding:30px;">👆 Click a Financial Year button above to start.</p>
-      </div>
+      <div id="entry-table-wrap"><p style="color:#888;text-align:center;padding:30px;">👆 Click a Financial Year button above to start.</p></div>
       <div class="inline-save" id="inline-save" style="display:none;">
         <button class="btn btn-save" onclick="saveData()">💾 Save Draft</button>
         <span class="save-time" id="save-time"></span>
@@ -168,15 +159,12 @@ footer{text-align:center;padding:12px;font-size:12px;color:#888;background:#fff;
   </div>
 </div>
 
-<!-- SUMMARY TAB -->
 <div class="tab-content" id="nav-summary">
   <div class="msg" id="sum-msg"></div>
   <div class="progress-grid" id="sum-cards"></div>
   <div class="gauges-section">
     <h3>📊 Expenditure Progress by Economic Code (% of Allocation Used)</h3>
-    <div class="gauge-grid" id="gauge-grid">
-      <p style="color:#888;font-size:13px;">Save data first to see progress.</p>
-    </div>
+    <div class="gauge-grid" id="gauge-grid"><p style="color:#888;font-size:13px;">Save data first to see progress.</p></div>
   </div>
   <div style="display:flex;gap:10px;margin-bottom:14px;">
     <button class="btn btn-excel" onclick="exportExcel()">📊 Export Excel</button>
@@ -185,7 +173,6 @@ footer{text-align:center;padding:12px;font-size:12px;color:#888;background:#fff;
   <div class="summary-wrap" id="summary-wrap"></div>
 </div>
 
-<!-- SUBMIT MODAL -->
 <div class="modal-overlay" id="submit-modal">
   <div class="modal">
     <h3>⚠️ Confirm Final Submission</h3>
@@ -200,21 +187,30 @@ footer{text-align:center;padding:12px;font-size:12px;color:#888;background:#fff;
 <footer>PEDP4-DPHE Financial Management System &nbsp;|&nbsp; Actual Allocation-Expenditure Entry &nbsp;|&nbsp; DPE-DPHE</footer>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbz4WGwJWU6UPFkFCCMjjTrXV76FqZJBKZm69OboycpGfkkvJ6cYt0deFhvc1NsE1CiW2w/exec';
+const firebaseConfig = {
+      apiKey: "AIzaSyCizCS5cGV62ECdA388R3b--lSsuLLXvi0",
+      authDomain: "pedp4-dphe-expenditure.firebaseapp.com",
+      projectId: "pedp4-dphe-expenditure",
+      storageBucket: "pedp4-dphe-expenditure.firebasestorage.app",
+      messagingSenderId: "14217233875",
+      appId: "1:14217233875:web:e4c3745770767e10abdb26"
+    };
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
 const FY_LIST = ['2018-19','2019-20','2020-21','2021-22','2022-23','2023-24','2024-25','2025-26'];
 
-// ── Session check ──
-const session = JSON.parse(localStorage.getItem('pedp4_session') || 'null');
-if (!session || !session.token) { window.location.href = 'index.html'; }
-if (session && session.role === 'admin') { window.location.href = 'hq.html'; }
+const session = JSON.parse(localStorage.getItem('pedp4_fb_session') || 'null');
+if (!session || !session.uid) window.location.href = 'index.html';
+if (session && session.role === 'admin') window.location.href = 'hq.html';
 
-// ── State ──
 let allCodes = [];
-let savedData = {};   // key: "ecCode|ecDesc", value: { fy: {alloc, exp} }
+let savedData = {};
 let isSubmitted = false;
 let activeFY = null;
+let currentUser = null;
 
-// ── Implementation vs Contingency classification ──
 const IMPLEMENTATION_KEYS = [
   '4111309|Sanitation and Water Supply (WASH Block)',
   '4111308|Sinking of Tubewell (Water Source)',
@@ -222,69 +218,8 @@ const IMPLEMENTATION_KEYS = [
   '4111308|Water Quality Test',
   '4111201|Non-residential Buildings (Major Repair)'
 ];
-function isImplementation(ecKey) { return IMPLEMENTATION_KEYS.includes(ecKey); }
+function isImplementation(k) { return IMPLEMENTATION_KEYS.includes(k); }
 
-// ── API ──
-async function api(data) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {'Content-Type': 'text/plain;charset=utf-8'},
-    body: JSON.stringify({...data, token: session.token}),
-    redirect: 'follow'
-  });
-  const text = await res.text();
-  try { return JSON.parse(text); }
-  catch(e) { return { success: false, message: 'Server response error. Please try again.' }; }
-}
-
-// ── Init ──
-window.onload = async () => {
-  const msg = document.getElementById('entry-msg');
-  msg.textContent = 'Loading...'; msg.className = 'msg info'; msg.style.display = 'block';
-  try {
-    const ecRes = await api({action: 'getEconomicCodes'});
-    if (!ecRes.success) throw new Error(ecRes.message);
-    allCodes = ecRes.codes;
-
-    const dataRes = await api({action: 'getData'});
-    if (!dataRes.success) throw new Error(dataRes.message);
-
-    if (dataRes.rows && dataRes.rows.length > 0) {
-      const h = dataRes.headers;
-      dataRes.rows.forEach(row => {
-        const ecKey = row[4] + '|' + row[5];
-        if (!savedData[ecKey]) savedData[ecKey] = {};
-        FY_LIST.forEach(fy => {
-          const ai = h.indexOf('Alloc_' + fy), ei = h.indexOf('Exp_' + fy);
-          savedData[ecKey][fy] = {
-            alloc: ai > -1 ? (parseFloat(row[ai]) || 0) : 0,
-            exp:   ei > -1 ? (parseFloat(row[ei]) || 0) : 0
-          };
-        });
-        if (row[h.indexOf('Status')] === 'submitted') isSubmitted = true;
-      });
-    }
-
-    document.getElementById('hdr-office').textContent = session.officeName;
-    document.getElementById('hdr-ddoid').textContent = 'DDO ID: ' + session.ddoId;
-    buildFYButtons();
-    updateStatusBadge();
-    updateTotalsBar();
-    msg.style.display = 'none';
-    if (isSubmitted) showMsg('entry-msg','Your data has been submitted. Contact HQ to unlock.','info');
-  } catch(e) {
-    if (e.message && e.message.includes('Session expired')) {
-      localStorage.removeItem('pedp4_session');
-      window.location.href = 'index.html';
-      return;
-    }
-    msg.textContent = 'Error: ' + e.message;
-    msg.className = 'msg error';
-    msg.style.display = 'block';
-  }
-};
-
-// ── Helpers ──
 function allEC() {
   return [
     ...allCodes.map(c => ({code:c.code, desc:c.description, key:c.code+'|'+c.description, is2pct:false})),
@@ -299,13 +234,51 @@ function fmtS(n) {
   return fmt(n);
 }
 
-// ── FY Buttons ──
+auth.onAuthStateChanged(async (user) => {
+  if (!user || user.uid !== session.uid) {
+    window.location.href = 'index.html';
+    return;
+  }
+  currentUser = user;
+  await loadEverything();
+});
+
+async function loadEverything() {
+  const msg = document.getElementById('entry-msg');
+  msg.textContent = 'Loading...'; msg.className = 'msg info'; msg.style.display = 'block';
+  try {
+    // Economic codes
+    const codesSnap = await db.collection('economicCodes').get();
+    allCodes = codesSnap.docs.map(d => d.data());
+
+    // This user's expenditure records
+    const expSnap = await db.collection('expenditure').where('userId','==',currentUser.uid).get();
+    expSnap.forEach(doc => {
+      const d = doc.data();
+      const ecKey = d.economicCode + '|' + d.ecDescription;
+      savedData[ecKey] = d.fyData || {};
+      if (d.status === 'submitted') isSubmitted = true;
+    });
+
+    document.getElementById('hdr-office').textContent = session.officeName;
+    document.getElementById('hdr-ddoid').textContent = 'DDO ID: ' + session.ddoId;
+    buildFYButtons();
+    updateStatusBadge();
+    updateTotalsBar();
+    msg.style.display = 'none';
+    if (isSubmitted) showMsg('entry-msg','Your data has been submitted. Contact HQ to unlock.','info');
+  } catch(e) {
+    msg.textContent = 'Error: ' + e.message;
+    msg.className = 'msg error';
+    msg.style.display = 'block';
+  }
+}
+
 function buildFYButtons() {
   const wrap = document.getElementById('fy-buttons');
   wrap.innerHTML = '';
   let filled=0, partial=0;
 
-  // All FY button
   const allBtn = document.createElement('button');
   allBtn.className = 'fy-btn' + (activeFY==='ALL' ? ' active' : '');
   allBtn.style.cssText = 'background:linear-gradient(135deg,#1a5276,#2980b9);color:white;border-color:#1a5276;';
@@ -334,8 +307,7 @@ function buildFYButtons() {
     wrap.appendChild(btn);
   });
 
-  document.getElementById('fy-progress-text').textContent =
-    filled+' of 8 years complete · '+partial+' partial';
+  document.getElementById('fy-progress-text').textContent = filled+' of 8 years complete · '+partial+' partial';
   updateTotalsBar();
 }
 
@@ -344,8 +316,7 @@ function updateTotalsBar() {
   let totA=0, totE=0;
   codes.forEach(c => FY_LIST.forEach(fy => {
     const d = savedData[c.key]?.[fy] || {};
-    totA += parseFloat(d.alloc||0);
-    totE += parseFloat(d.exp||0);
+    totA += parseFloat(d.alloc||0); totE += parseFloat(d.exp||0);
   }));
   const totB = totA - totE;
   const totP = totA > 0 ? ((totE/totA)*100).toFixed(1) : 0;
@@ -361,7 +332,7 @@ function updateTotalsBar() {
       <div style="font-size:11px;color:#888;margin-top:2px;">Total Expenditure (Tk)</div>
     </div>
     <div style="background:white;border-radius:8px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);text-align:center;">
-      <div style="font-size:18px;font-weight:700;color:${totB<0?'#c0392b':'#0e6655'};">${fmtS(totB)}</div>
+      <div style="font-size:18px;font-weight:700;color:${totB<0?'#c0392b':'#5d6d7e'};">${fmtS(totB)}</div>
       <div style="font-size:11px;color:#888;margin-top:2px;">Total Balance (Tk)</div>
     </div>
     <div style="background:white;border-radius:8px;padding:12px;box-shadow:0 1px 6px rgba(0,0,0,0.07);text-align:center;">
@@ -371,7 +342,6 @@ function updateTotalsBar() {
 }
 
 function selectFY(fy) {
-  // Sync current inputs to memory BEFORE switching
   syncInputs();
   activeFY = fy;
   buildFYButtons();
@@ -380,7 +350,6 @@ function selectFY(fy) {
   document.getElementById('inline-save').style.display = 'flex';
 }
 
-// ── Entry Table (single FY) ──
 function buildEntryTable(fy) {
   document.getElementById('entry-fy-title').textContent = 'Financial Year: '+fy+' — Allocation & Expenditure';
   const codes = allEC();
@@ -389,17 +358,17 @@ function buildEntryTable(fy) {
 
   let html = `<table id="main-table"><thead>
     <tr>
-      <th class="left" rowspan="2" style="min-width:220px;">Economic Code & Description</th>
-      <th style="background:#2e86c1;color:white;text-align:center;" colspan="2">FY ${fy}</th>
-      <th class="tot-col" colspan="3">All-Year Row Totals</th>
+      <th class="left" rowspan="2" style="min-width:220px;background:#1a5276;">Economic Code & Description</th>
+      <th colspan="2" style="background:#2e86c1;">FY ${fy}</th>
+      <th colspan="3" style="background:#d4ac0d;">All-Year Row Totals</th>
       <th style="background:#555;width:34px;" rowspan="2">⚠️</th>
     </tr>
     <tr>
-      <th style="background:#8e44ad;color:white;font-size:11px;">Allocation (Tk)</th>
-      <th style="background:#16a085;color:white;font-size:11px;">Expenditure (Tk)</th>
-      <th style="background:#d4ac0d;color:white;font-size:11px;">Total Alloc</th>
-      <th style="background:#e74c3c;color:white;font-size:11px;">Total Exp</th>
-      <th style="background:#5d6d7e;color:white;font-size:11px;">Total Bal</th>
+      <th style="background:#8e44ad;font-size:11px;">Allocation (Tk)</th>
+      <th style="background:#16a085;font-size:11px;">Expenditure (Tk)</th>
+      <th style="background:#d4ac0d;font-size:11px;">Total Alloc</th>
+      <th style="background:#e74c3c;font-size:11px;">Total Exp</th>
+      <th style="background:#5d6d7e;font-size:11px;">Total Bal</th>
     </tr>
   </thead><tbody>`;
 
@@ -409,18 +378,16 @@ function buildEntryTable(fy) {
     const over = alloc>0 && exp>alloc;
     ftAlloc += alloc; ftExp += exp;
 
-    // Row totals across ALL FYs
     let rA=0, rE=0;
     FY_LIST.forEach(f => {
       const fd = savedData[c.key]?.[f] || {};
-      rA += parseFloat(fd.alloc||0);
-      rE += parseFloat(fd.exp||0);
+      rA += parseFloat(fd.alloc||0); rE += parseFloat(fd.exp||0);
     });
     const rB = rA-rE, rOver = rA>0 && rE>rA;
     const sid = safe(c.key);
     const rowCls = c.is2pct ? 'two-pct-row' : '';
     const lbl = c.is2pct
-      ? '<span style="color:#7d6608;font-weight:700;">2% Cost</span>'
+      ? '<span style="color:#7d6608;font-weight:700;">2% Implementation Cost</span>'
       : '<span style="color:#1a5276;">'+c.code+'</span>';
 
     html += `<tr class="${rowCls}" data-eckey="${c.key}">
@@ -453,21 +420,19 @@ function buildEntryTable(fy) {
   document.getElementById('entry-table-wrap').innerHTML = html;
 }
 
-// ── All FY Table ──
 function buildAllFYTable() {
   document.getElementById('entry-fy-title').textContent = 'All Financial Years — Allocation & Expenditure';
   const codes = allEC();
   const dis = isSubmitted ? 'disabled' : '';
 
   let html = `<table><thead><tr>
-    <th class="left" rowspan="2" style="min-width:200px;">Economic Code & Description</th>
-    ${FY_LIST.map(fy=>'<th style="background:#2e86c1;color:white;text-align:center;font-size:11px;" colspan="2">FY '+fy+'</th>').join('')}
-    <th style="background:#d4ac0d;color:white;font-size:11px;" rowspan="2">Total Alloc</th>
-    <th style="background:#e74c3c;color:white;font-size:11px;" rowspan="2">Total Exp</th>
-    <th style="background:#5d6d7e;color:white;font-size:11px;" rowspan="2">Total Bal</th>
-    <th style="background:#555;width:30px;" rowspan="2">⚠️</th>
+    <th class="left" rowspan="2" style="min-width:200px;background:#1a5276;">Economic Code & Description</th>
+    ${FY_LIST.map(fy=>'<th style="background:#2e86c1;" colspan="2">FY '+fy+'</th>').join('')}
+    <th style="background:#d4ac0d;" rowspan="2">Total Alloc</th>
+    <th style="background:#e74c3c;" rowspan="2">Total Exp</th>
+    <th style="background:#5d6d7e;" rowspan="2">Total Bal</th>
   </tr><tr>
-    ${FY_LIST.map(()=>'<th style="background:#8e44ad;color:white;font-size:10px;">Alloc</th><th style="background:#16a085;color:white;font-size:10px;">Exp</th>').join('')}
+    ${FY_LIST.map(()=>'<th style="background:#8e44ad;font-size:10px;">Alloc</th><th style="background:#16a085;font-size:10px;">Exp</th>').join('')}
   </tr></thead><tbody>`;
 
   codes.forEach(c => {
@@ -481,14 +446,13 @@ function buildAllFYTable() {
       const d = savedData[c.key]?.[fy] || {};
       rA += parseFloat(d.alloc||0); rE += parseFloat(d.exp||0);
     });
-    const rB=rA-rE, rOver=rA>0&&rE>rA;
-
+    const rB = rA-rE;
     html += `<tr class="${rowCls}">
       <td class="ec-name">${lbl}<br><span style="font-weight:400;font-size:11px;color:#777;">${c.desc}</span></td>`;
     FY_LIST.forEach(fy => {
       const d = savedData[c.key]?.[fy] || {alloc:0,exp:0};
       const alloc=parseFloat(d.alloc||0), exp=parseFloat(d.exp||0);
-      const over=alloc>0&&exp>alloc;
+      const over = alloc>0 && exp>alloc;
       html += `
       <td><input class="num-input" type="text" inputmode="decimal" style="width:85px;"
         data-ec="${c.key}" data-fy="${fy}" data-type="alloc"
@@ -503,64 +467,50 @@ function buildAllFYTable() {
       <td style="text-align:right;font-weight:700;color:#d4ac0d;" id="afta-${sid}">${rA>0?fmt(rA):'—'}</td>
       <td style="text-align:right;font-weight:700;color:#e74c3c;" id="afte-${sid}">${rE>0?fmt(rE):'—'}</td>
       <td class="${rA>0?(rB<0?'bal-negative':'bal-positive'):''}" id="aftb-${sid}">${rA>0?fmt(rB):'—'}</td>
-      <td id="aftw-${sid}">${rOver?'<span class="warn-icon">⚠️</span>':''}</td>
     </tr>`;
   });
+  html += '</tbody></table>';
   document.getElementById('entry-table-wrap').innerHTML = html;
 }
 
-// ── Recalc (single FY table) ──
 function recalc(ecKey, fy) {
-  const get = type => parseFloat(
-    document.querySelector(`input[data-ec="${ecKey}"][data-fy="${fy}"][data-type="${type}"]`)?.value || 0);
+  const get = t => parseFloat(document.querySelector(`input[data-ec="${ecKey}"][data-fy="${fy}"][data-type="${t}"]`)?.value || 0);
   const alloc=get('alloc'), exp=get('exp'), over=alloc>0&&exp>alloc;
-
-  // Update memory
   if (!savedData[ecKey]) savedData[ecKey] = {};
   savedData[ecKey][fy] = {alloc, exp};
 
-  // Style exp input
   const expEl = document.querySelector(`input[data-ec="${ecKey}"][data-fy="${fy}"][data-type="exp"]`);
   if (expEl) expEl.classList.toggle('over-alloc', over);
 
-  // Update row totals
   const sid = safe(ecKey);
   let rA=0, rE=0;
   FY_LIST.forEach(f => {
     const fd = savedData[ecKey]?.[f] || {};
-    rA += parseFloat(fd.alloc||0);
-    rE += parseFloat(fd.exp||0);
+    rA += parseFloat(fd.alloc||0); rE += parseFloat(fd.exp||0);
   });
   const rB=rA-rE, rOver=rA>0&&rE>rA;
 
-  const rtaEl=document.getElementById('rta-'+sid);
-  const rteEl=document.getElementById('rte-'+sid);
-  const rtbEl=document.getElementById('rtb-'+sid);
-  const warnEl=document.getElementById('warn-'+sid);
+  const rtaEl=document.getElementById('rta-'+sid), rteEl=document.getElementById('rte-'+sid);
+  const rtbEl=document.getElementById('rtb-'+sid), warnEl=document.getElementById('warn-'+sid);
   if (rtaEl) rtaEl.textContent = rA>0?fmt(rA):'—';
   if (rteEl) rteEl.textContent = rE>0?fmt(rE):'—';
   if (rtbEl) { rtbEl.textContent=rA>0?fmt(rB):'—'; rtbEl.className=rA>0?(rB<0?'bal-negative':'bal-positive'):''; }
-  if (warnEl) warnEl.innerHTML = rOver?'<span class="warn-icon" title="Total Exp exceeds Total Alloc!">⚠️</span>':'';
+  if (warnEl) warnEl.innerHTML = rOver?'<span class="warn-icon">⚠️</span>':'';
 
-  // Footer totals
   const codes = allEC();
   let fA=0, fE=0;
-  codes.forEach(c => {
-    const fd=savedData[c.key]?.[fy]||{};
-    fA+=parseFloat(fd.alloc||0); fE+=parseFloat(fd.exp||0);
-  });
+  codes.forEach(c => { const fd=savedData[c.key]?.[fy]||{}; fA+=parseFloat(fd.alloc||0); fE+=parseFloat(fd.exp||0); });
   const fB=fA-fE, fP=fA>0?((fE/fA)*100).toFixed(1)+'%':'—';
   const fa=document.getElementById('ft-alloc'), fe=document.getElementById('ft-exp');
   if (fa) fa.textContent=fmt(fA);
   if (fe) fe.textContent=fmt(fE);
   const ftInfo=document.querySelector('#main-table tfoot td:nth-child(4)');
   if (ftInfo) ftInfo.textContent=`FY Balance: ${fmt(fB)} | ${fP} used`;
+  updateTotalsBar();
 }
 
-// ── Recalc (All FY table) ──
 function recalcAllFY(ecKey, fy, sid) {
-  const get = type => parseFloat(
-    document.querySelector(`input[data-ec="${ecKey}"][data-fy="${fy}"][data-type="${type}"]`)?.value || 0);
+  const get = t => parseFloat(document.querySelector(`input[data-ec="${ecKey}"][data-fy="${fy}"][data-type="${t}"]`)?.value || 0);
   const alloc=get('alloc'), exp=get('exp');
   if (!savedData[ecKey]) savedData[ecKey] = {};
   savedData[ecKey][fy] = {alloc, exp};
@@ -568,26 +518,16 @@ function recalcAllFY(ecKey, fy, sid) {
   const expEl=document.querySelector(`input[data-ec="${ecKey}"][data-fy="${fy}"][data-type="exp"]`);
   if (expEl) expEl.classList.toggle('over-alloc', over);
 
-  // Update row totals
-  if (!sid) sid = safe(ecKey);
   let rA=0, rE=0;
-  FY_LIST.forEach(f => {
-    const fd = savedData[ecKey]?.[f] || {};
-    rA += parseFloat(fd.alloc||0); rE += parseFloat(fd.exp||0);
-  });
-  const rB=rA-rE, rOver=rA>0&&rE>rA;
-  const ta=document.getElementById('afta-'+sid);
-  const te=document.getElementById('afte-'+sid);
-  const tb=document.getElementById('aftb-'+sid);
-  const tw=document.getElementById('aftw-'+sid);
+  FY_LIST.forEach(f => { const fd=savedData[ecKey]?.[f]||{}; rA+=parseFloat(fd.alloc||0); rE+=parseFloat(fd.exp||0); });
+  const rB=rA-rE;
+  const ta=document.getElementById('afta-'+sid), te=document.getElementById('afte-'+sid), tb=document.getElementById('aftb-'+sid);
   if(ta) ta.textContent=rA>0?fmt(rA):'—';
   if(te) te.textContent=rE>0?fmt(rE):'—';
   if(tb){tb.textContent=rA>0?fmt(rB):'—';tb.className=rA>0?(rB<0?'bal-negative':'bal-positive'):'';}
-  if(tw) tw.innerHTML=rOver?'<span class="warn-icon">⚠️</span>':'';
   updateTotalsBar();
 }
 
-// ── Validate input ──
 function validateNum(input) {
   let val = input.value.replace(/[^0-9.]/g,'');
   const parts = val.split('.');
@@ -595,62 +535,77 @@ function validateNum(input) {
   input.value = val;
 }
 
-// ── Sync inputs to memory ──
 function syncInputs() {
-  if (!activeFY) return;
-  const fys = activeFY==='ALL' ? FY_LIST : [activeFY];
-  const codes = allEC();
-  fys.forEach(fy => {
-    codes.forEach(c => {
-      const allocEl = document.querySelector(`input[data-ec="${c.key}"][data-fy="${fy}"][data-type="alloc"]`);
-      const expEl   = document.querySelector(`input[data-ec="${c.key}"][data-fy="${fy}"][data-type="exp"]`);
-      // Only update if input exists on page (avoids wiping data when switching modes)
-      if (allocEl || expEl) {
-        if (!savedData[c.key]) savedData[c.key] = {};
-        if (!savedData[c.key][fy]) savedData[c.key][fy] = {alloc:0, exp:0};
-        if (allocEl) savedData[c.key][fy].alloc = parseFloat(allocEl.value || 0);
-        if (expEl)   savedData[c.key][fy].exp   = parseFloat(expEl.value   || 0);
-      }
-    });
+  const allInputs = document.querySelectorAll('input.num-input[data-ec][data-fy][data-type]');
+  allInputs.forEach(input => {
+    const ecKey = input.getAttribute('data-ec');
+    const fy    = input.getAttribute('data-fy');
+    const type  = input.getAttribute('data-type');
+    if (!ecKey || !fy || !type) return;
+    if (!savedData[ecKey]) savedData[ecKey] = {};
+    if (!savedData[ecKey][fy]) savedData[ecKey][fy] = {alloc:0, exp:0};
+    savedData[ecKey][fy][type] = parseFloat(input.value || 0);
   });
 }
 
-// ── Collect rows for save ──
-function collectRows() {
-  const codes = allEC();
-  const rows = [];
-  codes.forEach(c => {
-    const fyData = {};
-    FY_LIST.forEach(fy => { fyData[fy] = savedData[c.key]?.[fy] || {alloc:0,exp:0}; });
-    if (Object.values(fyData).some(v => v.alloc>0||v.exp>0)) {
-      rows.push({economicCode:c.code, ecDescription:c.desc, fyData});
-    }
-  });
-  return rows;
-}
-
-// ── Save Draft ──
 async function saveData() {
   syncInputs();
-  const rows = collectRows();
-  if (!rows.length) { showMsg('entry-msg','No data to save.','info'); return; }
-  const btn=document.getElementById('btn-save');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Saving...';
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Saving...';
+
   try {
-    const res = await api({action:'saveData', rows});
-    if (res.success) {
-      const t=document.getElementById('save-time');
-      if (t) t.textContent='✓ Saved at '+new Date().toLocaleTimeString();
-      buildFYButtons();
+    const codes = allEC();
+    const batch = db.batch();
+    let count = 0;
+
+    for (const c of codes) {
+      const hasData = FY_LIST.some(fy => {
+        const d = savedData[c.key]?.[fy];
+        return d && (d.alloc>0 || d.exp>0);
+      });
+      if (!hasData) continue;
+
+      // Deterministic doc ID = uid + economicCode + description hash -> prevents duplicates entirely
+      const docId = currentUser.uid + '_' + safe(c.key).substring(0,60);
+      const ref = db.collection('expenditure').doc(docId);
+
+      // Check if already submitted — skip if so
+      const existing = await ref.get();
+      if (existing.exists && existing.data().status === 'submitted') continue;
+
+      let rowTotalAlloc=0, rowTotalExp=0;
+      FY_LIST.forEach(fy => {
+        const d = savedData[c.key]?.[fy] || {alloc:0,exp:0};
+        rowTotalAlloc += parseFloat(d.alloc||0);
+        rowTotalExp += parseFloat(d.exp||0);
+      });
+
+      batch.set(ref, {
+        userId: currentUser.uid,
+        officeName: session.officeName,
+        ddoId: session.ddoId,
+        economicCode: c.code,
+        ecDescription: c.desc,
+        fyData: savedData[c.key],
+        rowTotalAlloc, rowTotalExp, rowTotalBal: rowTotalAlloc-rowTotalExp,
+        status: 'draft',
+        lastSaved: new Date().toISOString(),
+        submittedAt: existing.exists ? (existing.data().submittedAt || null) : null
+      }, {merge:true});
+      count++;
     }
-    showMsg('entry-msg', res.message, res.success?'success':'error');
+
+    await batch.commit();
+
+    document.getElementById('save-time').textContent = '✓ Saved at ' + new Date().toLocaleTimeString();
+    buildFYButtons();
+    showMsg('entry-msg', `Saved ${count} economic code(s) successfully.`, 'success');
   } catch(e) {
-    showMsg('entry-msg','Save failed: '+e.message,'error');
+    showMsg('entry-msg', 'Save failed: ' + e.message, 'error');
   }
-  btn.disabled=false; btn.innerHTML='💾 Save Draft';
+  btn.disabled = false; btn.innerHTML = '💾 Save Draft';
 }
 
-// ── Submit ──
 function confirmSubmit() {
   if (isSubmitted) { showMsg('entry-msg','Already submitted. Contact HQ to unlock.','info'); return; }
   syncInputs();
@@ -666,29 +621,34 @@ function confirmSubmit() {
   });
   let html=`<p style="font-size:14px;margin-bottom:10px;">You are about to make a <strong>final submission</strong>. Once submitted you cannot edit without HQ unlocking.</p>`;
   html+=`<div style="background:#d1ecf1;border-radius:6px;padding:10px;margin-bottom:8px;font-size:13px;">✅ <strong>${filled.length} codes</strong> have data.</div>`;
-  if (blank.length) html+=`<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:10px;margin-bottom:8px;font-size:13px;">⚠️ <strong>${blank.length} codes are blank</strong> (treated as not applicable):<br><span style="color:#856404;font-size:11px;">${blank.map(c=>c.code+' — '+c.desc).join('<br>')}</span></div>`;
-  if (violations.length) html+=`<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:10px;margin-bottom:8px;font-size:13px;">🚨 <strong>Exp exceeds Alloc in:</strong><br><span style="color:#721c24;font-size:11px;">${violations.slice(0,5).join('<br>')}${violations.length>5?'<br>...and more':''}</span></div>`;
+  if (blank.length) html+=`<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:10px;margin-bottom:8px;font-size:13px;">⚠️ <strong>${blank.length} codes are blank</strong>.</div>`;
+  if (violations.length) html+=`<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;padding:10px;margin-bottom:8px;font-size:13px;">🚨 <strong>Exp exceeds Alloc in:</strong><br><span style="font-size:11px;">${violations.slice(0,5).join('<br>')}</span></div>`;
   html+=`<p style="font-size:13px;color:#555;">Are you sure you want to submit?</p>`;
   document.getElementById('modal-content').innerHTML=html;
   document.getElementById('submit-modal').classList.add('show');
 }
 function closeModal() { document.getElementById('submit-modal').classList.remove('show'); }
+
 async function doSubmit() {
   closeModal();
-  syncInputs();
-  const rows=collectRows();
-  if (rows.length) await api({action:'saveData',rows});
+  await saveData();
   const btn=document.getElementById('btn-submit');
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Submitting...';
   try {
-    const res=await api({action:'submitData'});
-    if (res.success) { isSubmitted=true; updateStatusBadge(); buildFYButtons(); if(activeFY&&activeFY!=='ALL') buildEntryTable(activeFY); }
-    showMsg('entry-msg',res.message,res.success?'success':'error');
+    const snap = await db.collection('expenditure').where('userId','==',currentUser.uid).get();
+    const batch = db.batch();
+    snap.forEach(doc => {
+      batch.update(doc.ref, {status:'submitted', submittedAt: new Date().toISOString()});
+    });
+    await batch.commit();
+    isSubmitted = true;
+    updateStatusBadge(); buildFYButtons();
+    if (activeFY && activeFY!=='ALL') buildEntryTable(activeFY);
+    showMsg('entry-msg','Submitted successfully!','success');
   } catch(e) { showMsg('entry-msg','Submit failed: '+e.message,'error'); }
   btn.disabled=false; btn.innerHTML='✅ Submit Final';
 }
 
-// ── Summary / Progress ──
 function buildSummary() {
   const codes=allEC();
   let totA=0,totE=0;
@@ -697,18 +657,15 @@ function buildSummary() {
     totA+=parseFloat(d.alloc||0); totE+=parseFloat(d.exp||0);
   }));
   const totB=totA-totE, totP=totA>0?((totE/totA)*100).toFixed(1):0;
-  // Implementation vs Contingency split
-  let implExp=0, contExp=0, implAlloc=0, contAlloc=0;
-  codes.forEach(c => {
-    FY_LIST.forEach(fy => {
-      const d = savedData[c.key]?.[fy] || {};
-      const a = parseFloat(d.alloc||0), e = parseFloat(d.exp||0);
-      if (isImplementation(c.key)) { implExp+=e; implAlloc+=a; }
-      else { contExp+=e; contAlloc+=a; }
-    });
-  });
-  const contRatio = implExp > 0 ? ((contExp/implExp)*100).toFixed(2) : '—';
-  const contColor = contRatio !== '—' && parseFloat(contRatio) > 2 ? '#c0392b' : '#27ae60';
+
+  let implExp=0, contExp=0;
+  codes.forEach(c => FY_LIST.forEach(fy => {
+    const d = savedData[c.key]?.[fy] || {};
+    const e = parseFloat(d.exp||0);
+    if (isImplementation(c.key)) implExp+=e; else contExp+=e;
+  }));
+  const contRatio = implExp>0 ? ((contExp/implExp)*100).toFixed(2) : '—';
+  const contColor = contRatio!=='—' && parseFloat(contRatio)>2 ? '#c0392b' : '#27ae60';
 
   document.getElementById('sum-cards').innerHTML=`
     <div class="progress-card purple"><div class="pnum">${fmtS(totA)}</div><div class="plbl">Total Allocation (Tk)</div></div>
@@ -717,10 +674,8 @@ function buildSummary() {
     <div class="progress-card"><div class="pnum" style="color:#2980b9;">${totP}%</div><div class="plbl">Overall Progress</div></div>
     <div class="progress-card"><div class="pnum" style="color:#1a5276;">${fmtS(implExp)}</div><div class="plbl">Implementation Cost Exp (Tk)</div></div>
     <div class="progress-card"><div class="pnum" style="color:#8e44ad;">${fmtS(contExp)}</div><div class="plbl">Contingency Cost Exp (Tk)</div></div>
-    <div class="progress-card"><div class="pnum" style="color:${contColor};">${contRatio}${contRatio!=='—'?'%':''}</div><div class="plbl">Contingency as % of Implementation</div></div>
-  `;
+    <div class="progress-card"><div class="pnum" style="color:${contColor};">${contRatio}${contRatio!=='—'?'%':''}</div><div class="plbl">Contingency as % of Implementation</div></div>`;
 
-  // Gauges
   const grid=document.getElementById('gauge-grid');
   const items=codes.map(c=>{
     let rA=0,rE=0;
@@ -728,28 +683,25 @@ function buildSummary() {
     return {...c,alloc:rA,exp:rE};
   }).filter(c=>c.alloc>0||c.exp>0);
 
-  if (!items.length) { grid.innerHTML='<p style="color:#888;font-size:13px;">No data yet.</p>'; }
-  else {
-    grid.innerHTML=items.map(c=>{
-      const pct=c.alloc>0?Math.min((c.exp/c.alloc)*100,100):0;
-      const raw=c.alloc>0?((c.exp/c.alloc)*100).toFixed(1):'—';
-      const over=c.alloc>0&&c.exp>c.alloc;
-      const col=over?'#c0392b':pct>=80?'#27ae60':pct>=50?'#f39c12':'#e67e22';
-      return `<div class="gauge-item">
-        <div class="gauge-code">${c.code}</div>
-        <div class="gauge-wrap">${gaugeSVG(pct,col)}<div class="gauge-pct" style="color:${col};">${raw}${raw!=='—'?'%':''}</div></div>
-        <div class="gauge-label">${c.desc.substring(0,35)}${c.desc.length>35?'…':''}</div>
-        <div style="font-size:10px;color:#888;margin-top:2px;">${fmtS(c.exp)} / ${fmtS(c.alloc)}</div>
-        ${over?'<div style="color:#c0392b;font-size:10px;">⚠️ Over allocation</div>':''}
-      </div>`;
-    }).join('');
-  }
+  if (!items.length) grid.innerHTML='<p style="color:#888;font-size:13px;">No data yet.</p>';
+  else grid.innerHTML=items.map(c=>{
+    const pct=c.alloc>0?Math.min((c.exp/c.alloc)*100,100):0;
+    const raw=c.alloc>0?((c.exp/c.alloc)*100).toFixed(1):'—';
+    const over=c.alloc>0&&c.exp>c.alloc;
+    const col=over?'#c0392b':pct>=80?'#27ae60':pct>=50?'#f39c12':'#e67e22';
+    return `<div class="gauge-item">
+      <div class="gauge-code">${c.code}</div>
+      <div class="gauge-wrap">${gaugeSVG(pct,col)}<div class="gauge-pct" style="color:${col};">${raw}${raw!=='—'?'%':''}</div></div>
+      <div class="gauge-label">${c.desc.substring(0,35)}${c.desc.length>35?'…':''}</div>
+      <div style="font-size:10px;color:#888;margin-top:2px;">${fmtS(c.exp)} / ${fmtS(c.alloc)}</div>
+      ${over?'<div style="color:#c0392b;font-size:10px;">⚠️ Over allocation</div>':''}
+    </div>`;
+  }).join('');
 
-  // Summary table
   let tbl=`<table><thead><tr>
-    <th class="left">Code & Description</th>
-    ${FY_LIST.map(fy=>'<th>FY '+fy+'<br><small>Alloc/Exp</small></th>').join('')}
-    <th>Total Alloc</th><th>Total Exp</th><th>Balance</th><th>% Used</th>
+    <th class="left" style="background:#1a5276;">Code & Description</th>
+    ${FY_LIST.map(fy=>'<th style="background:#1a5276;">FY '+fy+'<br><small>Alloc/Exp</small></th>').join('')}
+    <th style="background:#d4ac0d;">Total Alloc</th><th style="background:#e74c3c;">Total Exp</th><th style="background:#5d6d7e;">Balance</th><th style="background:#1a5276;">% Used</th>
   </tr></thead><tbody>`;
   codes.forEach(c=>{
     let tA=0,tE=0;
@@ -759,8 +711,7 @@ function buildSummary() {
       const a=parseFloat(d.alloc||0),e=parseFloat(d.exp||0);
       tA+=a;tE+=e;
       const over=a>0&&e>a;
-      tbl+=`<td style="font-size:11px;text-align:right;${over?'background:#fdf0f0;':''}">
-        ${a>0?fmt(a):'—'}<br><span style="color:#27ae60;">${e>0?fmt(e):'—'}</span>${over?' ⚠️':''}</td>`;
+      tbl+=`<td style="font-size:11px;text-align:right;${over?'background:#fdf0f0;':''}">${a>0?fmt(a):'—'}<br><span style="color:#27ae60;">${e>0?fmt(e):'—'}</span>${over?' ⚠️':''}</td>`;
     });
     const tB=tA-tE,tP=tA>0?((tE/tA)*100).toFixed(1)+'%':'—';
     tbl+=`<td style="text-align:right;font-weight:700;">${tA>0?fmt(tA):'—'}</td>
@@ -783,7 +734,6 @@ function gaugeSVG(pct, color) {
     ${pct>0?`<path d="M ${x1} ${y1} A ${R} ${R} 0 ${la} 1 ${x2} ${y2}" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="butt"/>`:''}</svg>`;
 }
 
-// ── Export Excel ──
 function exportExcel() {
   const codes=allEC();
   const ws=[['Economic Code','Description',...FY_LIST.flatMap(fy=>['FY '+fy+' Alloc','FY '+fy+' Exp']),'Total Alloc','Total Exp','Balance','% Used']];
@@ -801,7 +751,6 @@ function exportExcel() {
   XLSX.writeFile(wb,'PEDP4_'+session.officeName.replace(/[^a-zA-Z0-9]/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
 
-// ── Export PDF ──
 function exportPDF() {
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});
@@ -819,14 +768,9 @@ function exportPDF() {
     row.push(tA>0?fmt(tA):'-',tE>0?fmt(tE):'-',fmt(tB),tP);return row;
   });
   doc.autoTable({head,body,startY:26,styles:{fontSize:6,cellPadding:1.5},headStyles:{fillColor:[26,82,118],textColor:255},alternateRowStyles:{fillColor:[240,247,255]},columnStyles:{0:{cellWidth:40}}});
-  const y=doc.lastAutoTable.finalY+14;
-  doc.setFontSize(10);
-  doc.text('Prepared by (DDO):',14,y);doc.text('Verified by (Cashier):',100,y);doc.text('Date:',200,y);
-  doc.line(14,y+12,85,y+12);doc.line(100,y+12,171,y+12);doc.line(200,y+12,271,y+12);
   doc.save('PEDP4_'+session.officeName.replace(/[^a-zA-Z0-9]/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf');
 }
 
-// ── UI Helpers ──
 function showMsg(id,text,type) {
   const el=document.getElementById(id);
   el.textContent=text;el.className='msg '+type;el.style.display='block';
@@ -845,7 +789,7 @@ function switchNav(name) {
   document.getElementById('nav-'+name).classList.add('active');
   if(name==='summary') buildSummary();
 }
-function logout() { localStorage.removeItem('pedp4_session'); window.location.href='index.html'; }
+function logout() { auth.signOut(); localStorage.removeItem('pedp4_fb_session'); window.location.href='index.html'; }
 </script>
 </body>
 </html>
